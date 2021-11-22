@@ -1,9 +1,11 @@
+mod board;
+
 use std::fmt;
 /**
  * An immutable point on the Life "board". In keeping with Eric Lippert's implementation, the Y-coordinate increases when going *up*, rather than the screen default of going *down*
  * ie, the origin is the "bottom left" rather than the "top left"
  */
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LifePoint {
     x: f32,
     y: f32,
@@ -27,9 +29,12 @@ impl fmt::Display for LifePoint {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn can_create_LifePoint() {
+        let p = LifePoint { x: 1.2, y: 3.4 };
+        assert_eq!(p.get_x(), 1.2);
+        assert_eq!(p.get_y(), 3.4);
     }
 }
