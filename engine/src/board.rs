@@ -18,7 +18,7 @@ mod board {
             }
         }
 
-        pub fn step_many(&self, num_steps: u32) -> LifeBoard {
+        pub fn step_many(&self, num_steps: u64) -> LifeBoard {
             if num_steps == 0 {
                 //We didn't change anything, return the same state
                 self.clone()
@@ -44,7 +44,7 @@ mod board {
 
         #[test]
         pub fn can_create_filled_board() {
-            let points = vec![LifePoint { x: 0.0, y: 0.0 }, LifePoint { x: 1.1, y: 2.2 }];
+            let points = vec![LifePoint { x: 0, y: 0 }, LifePoint { x: 1, y: 2 }];
             let board = LifeBoard::new(points.clone());
             assert_eq!(board.live_points.len(), 2);
 

@@ -7,16 +7,16 @@ use std::fmt;
  */
 #[derive(Clone, Debug, PartialEq)]
 pub struct LifePoint {
-    x: f32,
-    y: f32,
+    x: i64,
+    y: i64,
 }
 
 impl LifePoint {
-    pub fn get_x(&self) -> f32 {
+    pub fn get_x(&self) -> i64 {
         self.x
     }
 
-    pub fn get_y(&self) -> f32 {
+    pub fn get_y(&self) -> i64 {
         self.y
     }
 }
@@ -33,8 +33,8 @@ mod tests {
 
     #[test]
     fn can_create_LifePoint() {
-        let p = LifePoint { x: 1.2, y: 3.4 };
-        assert_eq!(p.get_x(), 1.2);
-        assert_eq!(p.get_y(), 3.4);
+        let p = LifePoint { x: 1, y: 3 };
+        assert_eq!(p.get_x(), 1);
+        assert_eq!(p.get_y(), 3);
     }
 }
