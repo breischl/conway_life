@@ -4,35 +4,31 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // {
+        //     "name": "Run Test Debugger",
+        //     "type": "cppvsdbg",
+        //     "request": "launch",
+        //     "program": "${workspaceFolder}/target/debug/deps/engine-9ec63f0ad39a7394.exe",
+        //     "args": [],
+        //     "stopAtEntry": false,
+        //     "cwd": "${workspaceFolder}",
+        //     "environment": [],
+        //     "externalConsole": true,
+        //     "preLaunchTask": "cargo test build",
+        // }
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'conway_life'",
+            "name": "Debug unit tests in library 'engine'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=conway_life"
+                    "--package=engine"
                 ],
                 "filter": {
-                    "name": "conway_life",
-                    "kind": "lib"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Cargo check 'conway_life'",
-            "cargo": {
-                "args": [
-                    "check"
-                ],
-                "filter": {
-                    "name": "conway_life",
+                    "name": "engine",
                     "kind": "lib"
                 }
             },
