@@ -1,13 +1,11 @@
-mod super::grid;
-use crate::grid::VectorGrid;
+use crate::grid::life_grid::LifeGrid;
 
-#[derive(Clone, Debug)]
 pub struct LifeBoard {
-    grid: VectorGrid,
+    grid: Box<dyn LifeGrid>,
 }
 
 impl LifeBoard {
-    pub fn new(grid: VectorGrid) -> LifeBoard {
+    pub fn new(grid: Box<dyn LifeGrid>) -> LifeBoard {
         LifeBoard { grid }
     }
 
@@ -32,17 +30,19 @@ impl LifeBoard {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::grid::vector_grid::VectorGrid;
 
     #[test]
     pub fn can_create_empty_board() {
-        let grid = VectorGrid::from(vec![]);
-        let board = LifeBoard::new(grid);
+        let grid: Box<dyn LifeGrid> = Box::new(VectorGrid::empty());
+        LifeBoard::new(grid);
     }
 
     #[test]
     pub fn can_create_filled_board() {
-        let points = vec![vec![false, true], vec![true, false]];
-        let grid = VectorGrid::from(points);
+        let mut grid: Box<dyn LifeGrid> = Box::new(VectorGrid::empty());
+        grid.set_live(0, 0);
+        grid.set_live(1, 1);
         LifeBoard::new(grid);
     }
 }
