@@ -1,17 +1,16 @@
 use std::cmp::max;
 use std::convert::From;
-use super::life_grid::LifeGrid;
+use super::life_board::LifeBoard;
 
-#[derive(Clone, Debug)]
-pub struct VectorGrid {
+pub struct VectorLifeBoard {
     grid: Vec<Vec<bool>>,
     x_size: usize,
     y_size: usize,
 }
 
-impl VectorGrid {
-    pub fn empty() -> VectorGrid {
-        VectorGrid::from(vec![])
+impl VectorLifeBoard {
+    pub fn empty() -> VectorLifeBoard {
+        VectorLifeBoard::from(vec![])
     }
 
     fn is_live_num(&self, x: i64, y: i64) -> u8 {
@@ -49,6 +48,7 @@ impl VectorGrid {
         self.y_size = new_y_size;
     }
 
+    #[allow(dead_code)]
     fn get_live_count(&self) -> u64 {
         let mut count: u64 = 0;
         for row in &self.grid {
@@ -62,9 +62,12 @@ impl VectorGrid {
     }
 }
 
-impl LifeGrid for VectorGrid{
-/// Count the live neighbors of this cell, not counting the cell itself
-    /// This ends up a little more complex than Lippert's implementation because we're using `usize` indices, which can't represent negative values
+impl LifeBoard for VectorLifeBoard{
+    fn empty() -> VectorLifeBoard {
+        VectorLifeBoard::from(vec![])
+    }
+    
+    /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
         self.is_live_num(x - 1, y - 1) 
         + self.is_live_num(x - 1, y)
@@ -82,7 +85,7 @@ impl LifeGrid for VectorGrid{
         self.ensure_size(xu + 1, yu + 1);
         self.grid.get_mut(xu).unwrap()[yu] = true;
     }
-
+    
     fn is_live(&self, x: i64, y: i64) -> bool {
         if x < 0 || y < 0 {
             false
@@ -95,12 +98,29 @@ impl LifeGrid for VectorGrid{
                 .unwrap_or(false)
         }
     }
+
+    fn step_one(&mut self) { 
+        //Duplicate the internal vectors so that we don't lose the prior state halfway through
+        let mut new_state = self.grid.clone();
+
+        for xi in 0..(self.x_size as i64) {
+            for yi in 0..(self.y_size as i64) {
+                let count = self.count_live_neighbors(xi, yi);
+                let live = count == 3 || (count == 2 && self.is_live(xi, yi));
+                
+                let (xu, yu) = self.convert_coordinates(xi, yi);
+                new_state.get_mut(xu).unwrap()[yu] = live;
+            }
+        }
+
+        self.grid = new_state;
+    }
 }
 
 /// Create a new `VectorGrid` from the given set of booleans. Each live cell should be indicated with a `true`, dead cells with a `false`.
 /// The board implicitly starts at the origin, ie cell `(0, 0)`.
 /// All of the vectors must be the same length and capacity.
-impl From<Vec<Vec<bool>>> for VectorGrid {
+impl From<Vec<Vec<bool>>> for VectorLifeBoard {
     fn from(grid: Vec<Vec<bool>>) -> Self {
         let x_size = grid.capacity();
         let y_size = grid.get(0).map(|v| v.capacity()).unwrap_or(0);
@@ -117,7 +137,7 @@ impl From<Vec<Vec<bool>>> for VectorGrid {
             }
         }
 
-        VectorGrid {
+        VectorLifeBoard {
             grid,
             x_size,
             y_size,
@@ -128,9 +148,45 @@ impl From<Vec<Vec<bool>>> for VectorGrid {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    pub fn step_one_works_empty(){
+        let mut board = VectorLifeBoard::empty();
+        board.step_one();
+        assert_eq!(0, board.get_live_count());
+    }
+
+    #[test]
+    pub fn step_one_works_blinker(){
+        let mut board = VectorLifeBoard::empty();
+        board.set_live(2, 2);
+        board.set_live(2, 3);
+        board.set_live(2, 4);
+        board.set_live(5, 5);
+        
+        board.step_one();
+        assert_eq!(3, board.get_live_count());
+        assert_eq!(true, board.is_live(1, 3));
+        assert_eq!(true, board.is_live(2, 3));
+        assert_eq!(true, board.is_live(3, 3));
+        assert_eq!(false, board.is_live(2, 2));
+        assert_eq!(false, board.is_live(2, 4));
+        assert_eq!(false, board.is_live(5, 5));
+
+        board.step_one();
+        assert_eq!(3, board.get_live_count());
+        assert_eq!(true, board.is_live(2, 2));
+        assert_eq!(true, board.is_live(2, 3));
+        assert_eq!(true, board.is_live(2, 4));
+        assert_eq!(false, board.is_live(1, 3));
+        assert_eq!(false, board.is_live(3, 3));
+        assert_eq!(false, board.is_live(5, 5));
+    }
+
+
     #[test]
     pub fn can_create_empty_board() {
-        let board = VectorGrid::from(vec![]);
+        let board = VectorLifeBoard::from(vec![]);
         assert_eq!(0, board.get_live_count());
         assert_eq!(0, board.x_size);
         assert_eq!(0, board.y_size);
@@ -143,7 +199,7 @@ mod test {
     #[should_panic]
     pub fn cant_create_jagged_length_board() {
         let points = vec![vec![false, true], vec![true, false, true]];
-        let board = VectorGrid::from(points);
+        let board = VectorLifeBoard::from(points);
         assert_eq!(3, board.get_live_count());
     }
 
@@ -158,13 +214,13 @@ mod test {
         assert_eq!(vec1.len(), vec2.len());
         assert_ne!(vec1.capacity(), vec2.capacity());
 
-        VectorGrid::from(vec![vec1, vec2]);
+        VectorLifeBoard::from(vec![vec1, vec2]);
     }
 
     #[test]
     pub fn can_create_filled_board() {
         let points = vec![vec![false, true, false], vec![true, false, true]];
-        let board = VectorGrid::from(points);
+        let board = VectorLifeBoard::from(points);
         assert_eq!(2, board.x_size);
         assert_eq!(3, board.y_size);
         assert_eq!(3, board.get_live_count());
@@ -178,7 +234,7 @@ mod test {
 
     #[test]
     pub fn set_live_ensures_capacity() {
-        let mut board = VectorGrid::from(vec![vec![true, true]]);
+        let mut board = VectorLifeBoard::from(vec![vec![true, true]]);
         assert_eq!(true, board.is_live(0, 0));
         assert_eq!(true, board.is_live(0, 1));
         assert_eq!(1, board.x_size);
@@ -200,7 +256,7 @@ mod test {
 
     #[test]
     pub fn count_live_neighbors_works_at_borders() {
-        let mut board = VectorGrid::empty();
+        let mut board = VectorLifeBoard::empty();
         board.set_live(0, 0);
         board.set_live(0, 1);
 
@@ -210,7 +266,7 @@ mod test {
 
     #[test]
     pub fn count_live_neighbors_doesnt_count_self() {
-        let mut board = VectorGrid::empty();
+        let mut board = VectorLifeBoard::empty();
         for xi in 0..3{
             for yi in 0..3{
                 board.set_live(xi, yi);

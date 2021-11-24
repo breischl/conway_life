@@ -1,11 +1,9 @@
-mod board;
-mod grid;
+mod life_board;
+mod vector_board;
 
-use board::LifeBoard;
-use grid::life_grid::LifeGrid;
-use grid::vector_grid::VectorGrid;
+use life_board::LifeBoard;
+use vector_board::VectorLifeBoard;
 
-pub fn new_vector_board() -> LifeBoard {
-    let grid: Box<dyn LifeGrid> = Box::new(VectorGrid::empty());
-    LifeBoard::new(grid)
+pub fn new_vector_board() -> VectorLifeBoard {
+    VectorLifeBoard::empty()
 }
