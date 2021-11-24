@@ -1,5 +1,7 @@
 use std::cmp::max;
 use std::convert::From;
+use super::life_grid::LifeGrid;
+
 #[derive(Clone, Debug)]
 pub struct VectorGrid {
     grid: Vec<Vec<bool>>,
@@ -12,19 +14,6 @@ impl VectorGrid {
         VectorGrid::from(vec![])
     }
 
-    pub fn is_live(&self, x: i64, y: i64) -> bool {
-        if x < 0 || y < 0 {
-            false
-        } else {
-            let (xu, yu) = self.convert_coordinates(x, y);
-            self.grid
-                .get(xu)
-                .and_then(|row| row.get(yu))
-                .map(|b| b.clone())
-                .unwrap_or(false)
-        }
-    }
-
     fn is_live_num(&self, x: i64, y: i64) -> u8 {
         if self.is_live(x, y) {
             1
@@ -35,12 +24,6 @@ impl VectorGrid {
 
     fn convert_coordinates(&self, x: i64, y: i64) -> (usize, usize) {
         (x as usize, y as usize)
-    }
-
-    pub fn set_live(&mut self, x: i64, y: i64) {
-        let (xu, yu) = self.convert_coordinates(x, y);
-        self.ensure_size(xu + 1, yu + 1);
-        self.grid.get_mut(xu).unwrap()[yu] = true;
     }
 
     fn ensure_size(&mut self, req_x_size: usize, req_y_size: usize) {
@@ -66,22 +49,7 @@ impl VectorGrid {
         self.y_size = new_y_size;
     }
 
-    /// Count the live neighbors of this cell, not counting the cell itself
-    /// This ends up a little more complex than Lippert's implementation because we're using `usize` indices, which can't represent negative values
-    pub fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
-        self.is_live_num(x - 1, y - 1) 
-        + self.is_live_num(x - 1, y)
-        + self.is_live_num(x - 1, y + 1)
-        + self.is_live_num(x, y - 1)
-        //Note we skipped counting at (x, y) here, because that's the cell itself
-        + self.is_live_num(x, y + 1)
-        + self.is_live_num(x + 1, y - 1)
-        + self.is_live_num(x + 1, y)
-        + self.is_live_num(x + 1, y + 1)
-        
-    }
-
-    pub fn get_live_count(&self) -> u64 {
+    fn get_live_count(&self) -> u64 {
         let mut count: u64 = 0;
         for row in &self.grid {
             for cell in row {
@@ -91,6 +59,41 @@ impl VectorGrid {
             }
         }
         count
+    }
+}
+
+impl LifeGrid for VectorGrid{
+/// Count the live neighbors of this cell, not counting the cell itself
+    /// This ends up a little more complex than Lippert's implementation because we're using `usize` indices, which can't represent negative values
+    fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
+        self.is_live_num(x - 1, y - 1) 
+        + self.is_live_num(x - 1, y)
+        + self.is_live_num(x - 1, y + 1)
+        + self.is_live_num(x, y - 1)
+        //Note we skipped counting at (x, y) here, because that's the cell itself
+        + self.is_live_num(x, y + 1)
+        + self.is_live_num(x + 1, y - 1)
+        + self.is_live_num(x + 1, y)
+        + self.is_live_num(x + 1, y + 1)
+    }
+
+    fn set_live(&mut self, x: i64, y: i64) {
+        let (xu, yu) = self.convert_coordinates(x, y);
+        self.ensure_size(xu + 1, yu + 1);
+        self.grid.get_mut(xu).unwrap()[yu] = true;
+    }
+
+    fn is_live(&self, x: i64, y: i64) -> bool {
+        if x < 0 || y < 0 {
+            false
+        } else {
+            let (xu, yu) = self.convert_coordinates(x, y);
+            self.grid
+                .get(xu)
+                .and_then(|row| row.get(yu))
+                .map(|b| b.clone())
+                .unwrap_or(false)
+        }
     }
 }
 
