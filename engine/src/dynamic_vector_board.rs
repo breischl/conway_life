@@ -16,7 +16,7 @@ impl DynamicVectorLifeBoard {
     fn is_live_num(&self, x: i64, y: i64) -> u8 {
         if self.is_live(x, y) {
             1
-        } else {33333333333333333333333333333333333333
+        } else {
             0
         }
     }
