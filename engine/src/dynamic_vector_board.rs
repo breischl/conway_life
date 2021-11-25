@@ -1,18 +1,55 @@
+use std::cmp::min;
 use std::cmp::max;
-use std::convert::From;
 use super::life_board::LifeBoard;
 
 pub struct DynamicVectorLifeBoard {
     grid: Vec<Vec<bool>>,
-    x_size: usize,
-    y_size: usize,
+
+    /// The set of logical board squares that are currently allocated
+    /// ie, what area of the board can be used without resizing `grid`
+    board_extent: Rectangle,
+
+    /// Rectangle containing all the live squares on the board
+    /// In board coordinates
+    live_extent: Rectangle,
+}
+
+struct Rectangle {
+    x_min: BoardIndex,
+    y_min: BoardIndex,
+    width: i64,
+    height: i64,
+}
+
+type BoardIndex = i64;
+type GridIndex = usize;
+
+impl Rectangle {
+    fn contains_point(&self, x:BoardIndex, y:BoardIndex) -> bool{
+        return x >= self.x_min 
+        && x < (self.x_min + self.width)
+         && y >= self.y_min 
+         && y < (self.y_min + self.height);
+    }
+
+    fn expand_to_include(&mut self, x:BoardIndex, y:BoardIndex) {
+        self.x_min = min(self.x_min, x);
+        self.width = max(self.width, x - self.x_min + 1);
+        self.y_min = min(self.y_min, y);
+        self.height = max(self.height, y - self.y_min + 1);
+    }
+
+    fn empty() -> Rectangle{
+        Rectangle{
+            x_min: 0,
+            width: 0,
+            y_min: 0,
+            height: 0
+        }
+    }
 }
 
 impl DynamicVectorLifeBoard {
-    pub fn empty() -> DynamicVectorLifeBoard {
-        DynamicVectorLifeBoard::from(vec![])
-    }
-
     fn is_live_num(&self, x: i64, y: i64) -> u8 {
         if self.is_live(x, y) {
             1
@@ -21,31 +58,17 @@ impl DynamicVectorLifeBoard {
         }
     }
 
-    fn convert_coordinates(&self, x: i64, y: i64) -> (usize, usize) {
-        (x as usize, y as usize)
+    fn convert_coordinates(&self, x: BoardIndex, y: BoardIndex) -> (GridIndex, GridIndex) {
+        ((x - self.board_extent.x_min) as GridIndex, (y - self.board_extent.y_min) as GridIndex)
     }
 
-    fn ensure_size(&mut self, req_x_size: usize, req_y_size: usize) {
-        let new_x_size = max(self.x_size, req_x_size);
-        let new_y_size = max(self.y_size, req_y_size);
+    fn create_empty_grid(x_size: usize, y_size: usize) -> Vec<Vec<bool>>{
+        let mut new_y_vec: Vec<bool> = Vec::with_capacity(y_size);
+        new_y_vec.resize(y_size, false);
 
-        //If y-size is greater, resize all the existing y vectors
-        if new_y_size > self.y_size {
-            for y_vec in self.grid.iter_mut() {
-                y_vec.resize(new_y_size, false);
-            }
-        }
-
-        //If the x-size is greater, resize the main vector, being sure the newly-added rows use the new y-max
-        if new_x_size > self.x_size {
-            let mut new_vec: Vec<bool> = Vec::with_capacity(new_y_size);
-            new_vec.resize(new_y_size, false);
-
-            self.grid.resize(new_x_size, new_vec);
-        }
-
-        self.x_size = new_x_size;
-        self.y_size = new_y_size;
+        let mut new_x_vec: Vec<Vec<bool>> = Vec::with_capacity(x_size);
+        new_x_vec.resize(x_size, new_y_vec);
+        new_x_vec
     }
 
     #[allow(dead_code)]
@@ -64,7 +87,11 @@ impl DynamicVectorLifeBoard {
 
 impl LifeBoard for DynamicVectorLifeBoard{
     fn empty() -> DynamicVectorLifeBoard {
-        DynamicVectorLifeBoard::from(vec![])
+        DynamicVectorLifeBoard{
+            grid : vec![],
+            board_extent : Rectangle::empty(),
+            live_extent: Rectangle::empty()
+        }
     }
     
     /// Count the live neighbors of this cell, not counting the cell itself
@@ -81,13 +108,51 @@ impl LifeBoard for DynamicVectorLifeBoard{
     }
 
     fn set_live(&mut self, x: i64, y: i64) {
+        self.live_extent.expand_to_include(x, y);
+        
+         if !self.board_extent.contains_point(x, y) {
+            //Note we're expanding the board extent a fair bit here, to hopefully avoid too many resizes when setting up the initial board conditions
+            const padding : i64 = 10;
+            let new_board_extent = Rectangle{
+                x_min: self.live_extent.x_min - padding,
+                width: self.live_extent.width + (2 * padding),
+                y_min: self.live_extent.y_min - padding,
+                height: self.live_extent.height + (2 * padding)
+            };
+
+            let mut new_grid = DynamicVectorLifeBoard::create_empty_grid(new_board_extent.width as usize, new_board_extent.height as usize);
+            
+            let le = &self.live_extent;
+
+            //Copy old grid values to new grid
+            for xi in le.x_min..(le.x_min + le.width) {
+                let new_grid_x = (xi - new_board_extent.x_min) as usize;
+                let column = new_grid.get_mut(new_grid_x).unwrap();
+
+                for yi in le.x_min..(le.y_min + le.height) {
+                    if self.is_live(xi, yi) {
+                        let new_grid_y = (yi - new_board_extent.y_min) as usize;
+                        column[new_grid_y] = true;
+                    }
+                    
+                }
+            }
+
+            self.grid = new_grid;
+            self.board_extent = new_board_extent;
+
+            //Not necessary - live extent didn't change because it was in board coordinates already
+            //self.live_extent = ?
+        }
+
         let (xu, yu) = self.convert_coordinates(x, y);
-        self.ensure_size(xu + 1, yu + 1);
         self.grid.get_mut(xu).unwrap()[yu] = true;
     }
     
     fn is_live(&self, x: i64, y: i64) -> bool {
-        if x < 0 || y < 0 {
+        //We need to check that we don't index off the underlying vectors, which would really be the self.board_extent rectangle
+        //But we may as well check against self.live_extent since it's always a smaller bound, and will let us skip the actual grid lookup in some cases
+        if !self.live_extent.contains_point(x, y) {
             false
         } else {
             let (xu, yu) = self.convert_coordinates(x, y);
@@ -100,48 +165,37 @@ impl LifeBoard for DynamicVectorLifeBoard{
     }
 
     fn step_one(&mut self) { 
-        //Duplicate the internal vectors so that we don't lose the prior state halfway through
-        let mut new_state = self.grid.clone();
+        //We'll make the new board one larger than the existing live_extent in every direction
+        //So we can't possibly grow off the sides
+        let new_board_extent = Rectangle{
+            x_min: self.live_extent.x_min - 1,
+            width: self.live_extent.width + 2,
+            y_min: self.live_extent.y_min - 1,
+            height: self.live_extent.height + 2
+        };
 
-        for xi in 0..(self.x_size as i64) {
-            for yi in 0..(self.y_size as i64) {
+        let mut new_grid = DynamicVectorLifeBoard::create_empty_grid(new_board_extent.width as usize, new_board_extent.height as usize);
+
+        let mut new_live_extent = Rectangle::empty();
+        
+        for xi in new_board_extent.x_min..(new_board_extent.x_min + new_board_extent.width) {
+            let new_grid_x = (xi - new_board_extent.x_min) as usize;
+            let column = new_grid.get_mut(new_grid_x).unwrap();
+
+            for yi in new_board_extent.y_min..(new_board_extent.y_min + new_board_extent.height) {
                 let count = self.count_live_neighbors(xi, yi);
                 let live = count == 3 || (count == 2 && self.is_live(xi, yi));
-                
-                let (xu, yu) = self.convert_coordinates(xi, yi);
-                new_state.get_mut(xu).unwrap()[yu] = live;
+                if live {
+                    let new_grid_y = (yi - new_board_extent.y_min) as usize;
+                    column[new_grid_y] = true;
+                    new_live_extent.expand_to_include(xi, yi);
+                }  
             }
         }
 
-        self.grid = new_state;
-    }
-}
-
-/// Create a new `VectorGrid` from the given set of booleans. Each live cell should be indicated with a `true`, dead cells with a `false`.
-/// The board implicitly starts at the origin, ie cell `(0, 0)`.
-/// All of the vectors must be the same length and capacity.
-impl From<Vec<Vec<bool>>> for DynamicVectorLifeBoard {
-    fn from(grid: Vec<Vec<bool>>) -> Self {
-        let x_size = grid.capacity();
-        let y_size = grid.get(0).map(|v| v.capacity()).unwrap_or(0);
-
-        if grid.len() > 1 {
-            let y_used = grid.get(0).unwrap().len();
-            for vec in grid.iter() {
-                if vec.len() != y_used {
-                    panic!("All vectors in VectorGrid must be the same length");
-                }
-                if vec.capacity() != y_size {
-                    panic!("All vectors in VectorGrid must have the same capacity");
-                }
-            }
-        }
-
-        DynamicVectorLifeBoard {
-            grid,
-            x_size,
-            y_size,
-        }
+        self.grid = new_grid;
+        self.live_extent = new_live_extent;
+        self.board_extent = new_board_extent;
     }
 }
 
@@ -186,70 +240,31 @@ mod test {
 
     #[test]
     pub fn can_create_empty_board() {
-        let board = DynamicVectorLifeBoard::from(vec![]);
+        let board = DynamicVectorLifeBoard::empty();
         assert_eq!(0, board.get_live_count());
-        assert_eq!(0, board.x_size);
-        assert_eq!(0, board.y_size);
-        assert_eq!(false, board.is_live(0, 0));
-        assert_eq!(false, board.is_live(0, 1));
-        assert_eq!(false, board.is_live(1, 1));
-    }
-
-    #[test]
-    #[should_panic]
-    pub fn cant_create_jagged_length_board() {
-        let points = vec![vec![false, true], vec![true, false, true]];
-        let board = DynamicVectorLifeBoard::from(points);
-        assert_eq!(3, board.get_live_count());
-    }
-
-    #[test]
-    #[should_panic]
-    pub fn cant_create_jagged_capacity_board() {
-        let vec1 = vec![false, true];
-        let mut vec2: Vec<bool> = Vec::with_capacity(50);
-        vec2.push(false);
-        vec2.push(true);
-
-        assert_eq!(vec1.len(), vec2.len());
-        assert_ne!(vec1.capacity(), vec2.capacity());
-
-        DynamicVectorLifeBoard::from(vec![vec1, vec2]);
-    }
-
-    #[test]
-    pub fn can_create_filled_board() {
-        let points = vec![vec![false, true, false], vec![true, false, true]];
-        let board = DynamicVectorLifeBoard::from(points);
-        assert_eq!(2, board.x_size);
-        assert_eq!(3, board.y_size);
-        assert_eq!(3, board.get_live_count());
-        assert_eq!(false, board.is_live(0, 0));
-        assert_eq!(true, board.is_live(0, 1));
-        assert_eq!(false, board.is_live(0, 2));
-        assert_eq!(true, board.is_live(1, 0));
-        assert_eq!(false, board.is_live(1, 1));
-        assert_eq!(true, board.is_live(1, 2));
     }
 
     #[test]
     pub fn set_live_ensures_capacity() {
-        let mut board = DynamicVectorLifeBoard::from(vec![vec![true, true]]);
+        let mut board = DynamicVectorLifeBoard::empty();
+        board.set_live(0, 0);
+        board.set_live(0, 1);
+
         assert_eq!(true, board.is_live(0, 0));
         assert_eq!(true, board.is_live(0, 1));
-        assert_eq!(1, board.x_size);
-        assert_eq!(2, board.y_size);
+        assert_eq!(1, board.live_extent.width);
+        assert_eq!(2, board.live_extent.height);
         assert_eq!(2, board.get_live_count());
 
         board.set_live(1, 2);
-        assert_eq!(2, board.x_size);
-        assert_eq!(3, board.y_size);
+        assert_eq!(2, board.live_extent.width);
+        assert_eq!(3, board.live_extent.height);
         assert_eq!(true, board.is_live(1, 2));
         assert_eq!(3, board.get_live_count());
 
         board.set_live(4, 5);
-        assert_eq!(5, board.x_size);
-        assert_eq!(6, board.y_size);
+        assert_eq!(5, board.live_extent.width);
+        assert_eq!(6, board.live_extent.height);
         assert_eq!(true, board.is_live(4, 5));
         assert_eq!(4, board.get_live_count());
     }
