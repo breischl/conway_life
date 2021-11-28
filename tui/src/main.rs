@@ -1,15 +1,15 @@
+#![allow(unused_imports)]
 mod life_widget;
 use crossterm::event::{poll, read, Event, KeyCode};
 use engine::life_board::LifeBoard;
-use life_widget::LifeWidget;
+use life_widget::{LifeWidget, LifeWidgetState};
 use std::io;
 use std::time::Duration;
-use tui::backend::CrosstermBackend;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Modifier, Style};
 use tui::widgets::{Block, Borders, Chart, Paragraph, Widget, Wrap};
-use tui::Frame;
-use tui::Terminal;
+use tui::{Frame, Terminal};
 
 fn main() -> Result<(), io::Error> {
     let stdout = io::stdout();
@@ -17,52 +17,91 @@ fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+    let mut life_board = engine::new_dynamic_vector_board();
+    life_board.set_live(0, 0);
+    life_board.set_live(0, 1);
+    life_board.set_live(1, 0);
+    life_board.set_live(1, 1);
+    life_board.set_live(1, 2);
+    life_board.set_live(3, 4);
+    let mut life_widget_state = LifeWidgetState::new();
+
+    let mut last_input_event: String = String::default();
+
     loop {
-        terminal.draw(|f| {
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(1)
-                .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
-                .split(f.size());
-
-            let main_block = Block::default()
-                .title("Conway's Game of Life")
-                .borders(Borders::ALL)
-                .title_alignment(Alignment::Center);
-            let main_block_rect = main_block.inner(chunks[0]);
-            f.render_widget(main_block, chunks[0]);
-
-            let mut life_board = engine::new_dynamic_vector_board();
-            life_board.set_live(0, 0);
-            life_board.set_live(0, 1);
-            life_board.set_live(1, 0);
-            life_board.set_live(1, 1);
-            life_board.set_live(1, 2);
-            life_board.set_live(3, 4);
-            let life_widget = LifeWidget::new(Box::new(&life_board)).x(0).y(0);
-            f.render_widget(life_widget, main_block_rect);
-
-            let controls_text = format!("(q)uit");
-            let controls_block = Paragraph::new(controls_text)
-                .alignment(Alignment::Center)
-                .wrap(Wrap { trim: false });
-            f.render_widget(controls_block, chunks[1]);
-        })?;
+        draw(
+            &mut terminal,
+            &life_widget_state,
+            &life_board,
+            &last_input_event,
+        )?;
 
         if poll(Duration::from_millis(10))? {
-            // It's guaranteed that the `read()` won't block when the `poll()`
-            // function returns `true`
-            match read()? {
+            // It's guaranteed that the `read()` won't block when `poll()` returns `true`
+            let event = read()?;
+            last_input_event = format!("{:?}", event);
+
+            match event {
                 Event::Key(event) => match event.code {
                     KeyCode::Char('q') => break,
-                    _ => println!("{:?}", event),
+                    KeyCode::Char('n') => life_board.step_one(),
+                    _ => {}
                 },
-                Event::Mouse(event) => println!("{:?}", event),
-                Event::Resize(width, height) => println!("New size {}x{}", width, height),
+                // Event::Mouse(event) => last_input_event = format!("{:?}", event),
+                // Event::Resize(width, height) => {
+                //     last_input_event = format!("New size {}x{}", width, height)
+                // }
+                _ => {}
             }
         } else {
             // Timeout expired and no `Event` is available
         }
     }
+
+    terminal.clear()?;
     Ok(())
+}
+
+fn draw<'a, B: Backend>(
+    terminal: &mut Terminal<B>,
+    life_widget_state: &'a LifeWidgetState,
+    board: &dyn LifeBoard,
+    last_input_event: &String,
+) -> Result<(), io::Error> {
+    terminal.draw(|f| {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([Constraint::Percentage(90), Constraint::Percentage(10)].as_ref())
+            .split(f.size());
+
+        let main_block = Block::default()
+            .title("Conway's Game of Life")
+            .borders(Borders::ALL)
+            .title_alignment(Alignment::Center);
+        let main_block_rect = main_block.inner(chunks[0]);
+        f.render_widget(main_block, chunks[0]);
+
+        let life_widget = LifeWidget::new(Box::new(board), life_widget_state);
+        f.render_widget(life_widget, main_block_rect);
+
+        let controls_text = format!("(n)ext step, (q)uit\nLast input event={}", last_input_event);
+        let controls_block = Paragraph::new(controls_text)
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false });
+        f.render_widget(controls_block, chunks[1]);
+    })?;
+
+    Ok(())
+}
+
+pub struct ConsolePoint {
+    x: u16,
+    y: u16,
+}
+
+impl ConsolePoint {
+    pub fn new(x: u16, y: u16) -> ConsolePoint {
+        ConsolePoint { x, y }
+    }
 }
