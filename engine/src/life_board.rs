@@ -2,7 +2,6 @@ pub trait LifeBoard {
     fn is_live(&self, x: i64, y: i64) -> bool;
     fn set_live(&mut self, x: i64, y: i64);
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8;
-    fn empty() -> Self;
     fn step_one(&mut self);
 
     // pub fn step_many(&self, num_steps: u64) -> LifeBoard {

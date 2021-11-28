@@ -83,17 +83,17 @@ impl DynamicVectorLifeBoard {
         }
         count
     }
-}
 
-impl LifeBoard for DynamicVectorLifeBoard{
-    fn empty() -> DynamicVectorLifeBoard {
+    pub fn empty() -> DynamicVectorLifeBoard {
         DynamicVectorLifeBoard{
             grid : vec![],
             board_extent : Rectangle::empty(),
             live_extent: Rectangle::empty()
         }
     }
-    
+}
+
+impl LifeBoard for DynamicVectorLifeBoard{
     /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
         self.is_live_num(x - 1, y - 1) 
@@ -112,12 +112,12 @@ impl LifeBoard for DynamicVectorLifeBoard{
         
          if !self.board_extent.contains_point(x, y) {
             //Note we're expanding the board extent a fair bit here, to hopefully avoid too many resizes when setting up the initial board conditions
-            const padding : i64 = 10;
+            const PADDING : i64 = 10;
             let new_board_extent = Rectangle{
-                x_min: self.live_extent.x_min - padding,
-                width: self.live_extent.width + (2 * padding),
-                y_min: self.live_extent.y_min - padding,
-                height: self.live_extent.height + (2 * padding)
+                x_min: self.live_extent.x_min - PADDING,
+                width: self.live_extent.width + (2 * PADDING),
+                y_min: self.live_extent.y_min - PADDING,
+                height: self.live_extent.height + (2 * PADDING)
             };
 
             let mut new_grid = DynamicVectorLifeBoard::create_empty_grid(new_board_extent.width as usize, new_board_extent.height as usize);

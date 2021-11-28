@@ -47,10 +47,6 @@ impl FixedVectorLifeBoard {
 }
 
 impl LifeBoard for FixedVectorLifeBoard{
-    fn empty() -> FixedVectorLifeBoard {
-        FixedVectorLifeBoard::from(vec![])
-    }
-    
     /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
         self.is_live_num(x - 1, y - 1) 

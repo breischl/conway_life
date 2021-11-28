@@ -1,10 +1,10 @@
 mod dynamic_vector_board;
 mod fixed_vector_board;
-mod life_board;
+pub mod life_board;
 
-use dynamic_vector_board::DynamicVectorLifeBoard;
-use fixed_vector_board::FixedVectorLifeBoard;
-use life_board::LifeBoard;
+pub use dynamic_vector_board::DynamicVectorLifeBoard;
+pub use fixed_vector_board::FixedVectorLifeBoard;
+pub use life_board::LifeBoard;
 
 pub fn new_fixed_vector_board() -> FixedVectorLifeBoard {
     FixedVectorLifeBoard::empty()
