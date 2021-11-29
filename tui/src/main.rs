@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 mod life_widget;
-use crossterm::event::{poll, read, Event, KeyCode};
+use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
 use engine::life_board::LifeBoard;
 use life_widget::{LifeWidget, LifeWidgetState};
 use std::io;
@@ -69,6 +69,26 @@ fn main() -> Result<(), io::Error> {
                         1 => paused = true,
                         _ => speed -= 1,
                     },
+                    KeyCode::Char('a') | KeyCode::Left => {
+                        life_widget_state.screen_offset = life_widget_state
+                            .screen_offset
+                            .move_left(calc_move_offset(event))
+                    }
+                    KeyCode::Char('d') | KeyCode::Right => {
+                        life_widget_state.screen_offset = life_widget_state
+                            .screen_offset
+                            .move_right(calc_move_offset(event))
+                    }
+                    KeyCode::Char('w') | KeyCode::Up => {
+                        life_widget_state.screen_offset = life_widget_state
+                            .screen_offset
+                            .move_up(calc_move_offset(event))
+                    }
+                    KeyCode::Char('s') | KeyCode::Down => {
+                        life_widget_state.screen_offset = life_widget_state
+                            .screen_offset
+                            .move_down(calc_move_offset(event))
+                    }
                     _ => {}
                 },
                 // Event::Mouse(event) => last_input_event = format!("{:?}", event),
@@ -81,13 +101,26 @@ fn main() -> Result<(), io::Error> {
             // Timeout expired and no `Event` is available
         }
 
-        if (!paused) {
+        if !paused {
             life_board.step_one();
         }
     }
 
     terminal.clear()?;
     Ok(())
+}
+
+fn calc_move_offset(event: crossterm::event::KeyEvent) -> i64 {
+    let shift = event.modifiers.contains(KeyModifiers::SHIFT);
+    let ctrl = event.modifiers.contains(KeyModifiers::CONTROL)
+        || event.modifiers.contains(KeyModifiers::ALT);
+    if ctrl && shift {
+        25
+    } else if shift {
+        10
+    } else {
+        1
+    }
 }
 
 fn draw<'a, B: Backend>(
@@ -148,12 +181,40 @@ fn draw<'a, B: Backend>(
 }
 
 pub struct ConsolePoint {
-    x: u16,
-    y: u16,
+    x: i64,
+    y: i64,
 }
 
 impl ConsolePoint {
-    pub fn new(x: u16, y: u16) -> ConsolePoint {
+    pub fn new(x: i64, y: i64) -> ConsolePoint {
         ConsolePoint { x, y }
+    }
+
+    pub fn move_left(&self, offset: i64) -> ConsolePoint {
+        ConsolePoint {
+            x: self.x - offset,
+            y: self.y,
+        }
+    }
+
+    pub fn move_right(&self, offset: i64) -> ConsolePoint {
+        ConsolePoint {
+            x: self.x + offset,
+            y: self.y,
+        }
+    }
+
+    pub fn move_up(&self, offset: i64) -> ConsolePoint {
+        ConsolePoint {
+            x: self.x,
+            y: self.y - offset,
+        }
+    }
+
+    pub fn move_down(&self, offset: i64) -> ConsolePoint {
+        ConsolePoint {
+            x: self.x,
+            y: self.y + offset,
+        }
     }
 }
