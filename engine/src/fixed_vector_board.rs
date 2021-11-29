@@ -59,16 +59,16 @@ impl LifeBoard for FixedVectorLifeBoard{
         + self.is_live_num(x + 1, y)
         + self.is_live_num(x + 1, y + 1)
     }
-
-    fn set_live(&mut self, x: i64, y: i64) {
+    
+    fn set_liveness(&mut self, x: i64, y: i64, is_live: bool){
         if x < 0 || y < 0 || x >= self.x_size as i64 || y>= self.y_size as i64 {
             panic!("Coordinate is outside of FixedVectorLifeBoard bounds");
         }
 
         let (xu, yu) = self.convert_coordinates(x, y);
-        self.grid.get_mut(xu).unwrap()[yu] = true;
+        self.grid.get_mut(xu).unwrap()[yu] = is_live;
     }
-    
+
     fn is_live(&self, x: i64, y: i64) -> bool {
         if x < 0 || y < 0 || x >= self.x_size as i64 || y>= self.y_size as i64 {
             false

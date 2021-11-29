@@ -1,6 +1,7 @@
 mod dynamic_vector_board;
 mod fixed_vector_board;
 pub mod life_board;
+pub mod pattern;
 
 pub use dynamic_vector_board::DynamicVectorLifeBoard;
 pub use fixed_vector_board::FixedVectorLifeBoard;

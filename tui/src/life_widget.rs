@@ -40,7 +40,7 @@ impl<'a> LifeWidget<'a> {
 
 impl<'a> Widget for LifeWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        const LIVE_CELL: &str = "•"; //█
+        const LIVE_CELL: &str = "⦿"; //█  //•
         const DEAD_CELL: &str = " ";
         let mut state = self.state;
         let offset = &state.screen_offset;

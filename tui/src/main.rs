@@ -1,7 +1,8 @@
 #![allow(unused_imports)]
 mod life_widget;
 use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
-use engine::life_board::LifeBoard;
+use engine::life_board::{BoardPoint, LifeBoard};
+use engine::pattern::Pattern;
 use life_widget::{LifeWidget, LifeWidgetState};
 use std::io;
 use std::time::Duration;
@@ -19,15 +20,9 @@ fn main() -> Result<(), io::Error> {
     terminal.clear()?;
 
     let mut life_board = engine::new_dynamic_vector_board();
-    life_board.set_live(0, 0);
-    life_board.set_live(0, 1);
-    life_board.set_live(1, 0);
-    life_board.set_live(1, 1);
-    life_board.set_live(1, 2);
-    life_board.set_live(3, 4);
     let mut life_widget_state = LifeWidgetState::new();
     let mut paused = true; //start in paused state
-    let mut speed: u64 = 1; //frame per second
+    let mut speed: u64 = 5; //frames per second
 
     let mut last_input_event: String = String::default();
 
@@ -89,9 +84,27 @@ fn main() -> Result<(), io::Error> {
                             .screen_offset
                             .move_down(calc_move_offset(event))
                     }
-                    KeyCode::Char(' ') => life_board.set_live(
-                        life_widget_state.center_point.x,
-                        life_widget_state.center_point.y,
+                    KeyCode::Char('c') => life_board = engine::new_dynamic_vector_board(),
+                    KeyCode::Char(' ') => {
+                        let bp = life_widget_state.center_point.to_board_point();
+                        let is_live = life_board.is_live_point(&bp);
+                        life_board.set_liveness_point(&bp, !is_live);
+                    }
+                    KeyCode::Char('1') => life_board.draw_pattern(
+                        &Pattern::ACORN(),
+                        &life_widget_state.center_point.to_board_point(),
+                    ),
+                    KeyCode::Char('2') => life_board.draw_pattern(
+                        &Pattern::BLOCK(),
+                        &life_widget_state.center_point.to_board_point(),
+                    ),
+                    KeyCode::Char('3') => life_board.draw_pattern(
+                        &Pattern::BEACON(),
+                        &life_widget_state.center_point.to_board_point(),
+                    ),
+                    KeyCode::Char('4') => life_board.draw_pattern(
+                        &Pattern::PULSAR(),
+                        &life_widget_state.center_point.to_board_point(),
                     ),
                     _ => {}
                 },
@@ -166,7 +179,7 @@ fn draw<'a, B: Backend>(
         };
 
         let controls_text =
-            "(p)lay/(p)ause, (n)ext step, (q)uit, arrows move, space toggles center square live, 1-9 to insert pattern at center, (> or ]) speed up, (< or [) slow down";
+            "(p)lay/(p)ause, (n)ext step, (c)lear, (q)uit, arrows move, space toggles center square live, 1-9 to insert pattern at center, (> or ]) speed up, (< or [) slow down";
 
         let debug_text = Spans::from(vec![Span::from(last_input_event)]);
 
@@ -191,6 +204,10 @@ pub struct ConsolePoint {
 impl ConsolePoint {
     pub fn new(x: i64, y: i64) -> ConsolePoint {
         ConsolePoint { x, y }
+    }
+
+    pub fn to_board_point(&self) -> BoardPoint {
+        BoardPoint::new(self.x, self.y)
     }
 
     pub fn move_left(&self, offset: i64) -> ConsolePoint {

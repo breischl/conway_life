@@ -107,7 +107,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
         + self.is_live_num(x + 1, y + 1)
     }
 
-    fn set_live(&mut self, x: i64, y: i64) {
+    fn set_liveness(&mut self, x: i64, y: i64, is_live:bool) {
         self.live_extent.expand_to_include(x, y);
         
          if !self.board_extent.contains_point(x, y) {
@@ -146,7 +146,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
         }
 
         let (xu, yu) = self.convert_coordinates(x, y);
-        self.grid.get_mut(xu).unwrap()[yu] = true;
+        self.grid.get_mut(xu).unwrap()[yu] = is_live;
     }
     
     fn is_live(&self, x: i64, y: i64) -> bool {
