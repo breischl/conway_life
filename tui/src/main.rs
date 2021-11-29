@@ -61,7 +61,7 @@ fn main() -> Result<(), io::Error> {
                             life_board.step_one()
                         }
                     }
-                    KeyCode::Char(' ') => paused = !paused,
+                    KeyCode::Char('p') => paused = !paused,
                     KeyCode::Char('>') | KeyCode::Char(']') => {
                         speed += 1;
                     }
@@ -111,12 +111,11 @@ fn main() -> Result<(), io::Error> {
 }
 
 fn calc_move_offset(event: crossterm::event::KeyEvent) -> i64 {
-    let shift = event.modifiers.contains(KeyModifiers::SHIFT);
-    let ctrl = event.modifiers.contains(KeyModifiers::CONTROL)
-        || event.modifiers.contains(KeyModifiers::ALT);
-    if ctrl && shift {
+    let alt = event.modifiers.contains(KeyModifiers::ALT);
+    let ctrl = event.modifiers.contains(KeyModifiers::CONTROL);
+    if ctrl && alt {
         25
-    } else if shift {
+    } else if alt {
         10
     } else {
         1
@@ -163,7 +162,7 @@ fn draw<'a, B: Backend>(
         };
 
         let controls_text =
-            "(space) -> play/pause, (> or ]) speed up, (< or [) slow down, (n)ext step, (q)uit";
+            "(p)lay/(p)ause, (n)ext step, (q)uit, arrows move, space toggles center square live, 1-9 to insert pattern at center, (> or ]) speed up, (< or [) slow down";
 
         let debug_text = Spans::from(vec![Span::from(last_input_event)]);
 

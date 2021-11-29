@@ -23,11 +23,6 @@ impl LifeWidgetState {
             default_style: Style::default().bg(Color::Black).fg(Color::Green),
         }
     }
-
-    pub fn screen_offset(mut self, offset: ConsolePoint) -> LifeWidgetState {
-        self.screen_offset = offset;
-        self
-    }
 }
 
 pub struct LifeWidget<'a> {
@@ -47,41 +42,33 @@ impl<'a> Widget for LifeWidget<'a> {
         const DEAD_CELL: &str = " ";
         let state = self.state;
         let offset = &state.screen_offset;
-        let width = area.width as i64;
-        let height = area.height as i64;
-        let center_y = offset.y + (area.height as i64 / 2);
-        let center_x = offset.x + (area.width as i64 / 2);
+        let center_y = area.height / 2;
+        let center_x = area.width / 2;
 
-        for yi in offset.y..(offset.y + height) {
+        for screen_y_idx in 0..area.height {
             let mut spans: Vec<Span> = Vec::with_capacity(area.width as usize);
-            for xi in offset.x..(offset.x + width) {
-                let span_style = if xi == center_x && yi == center_y {
+            for screen_x_idx in 0..area.width {
+                let span_style = if screen_x_idx == center_x && screen_y_idx == center_y {
                     state.active_style
                 } else {
                     state.default_style
                 };
 
-                if self.board.is_live(xi as i64, yi as i64) {
+                let board_x = screen_x_idx as i64 + offset.x;
+                let board_y = screen_y_idx as i64 + offset.y;
+                if self.board.is_live(board_x, board_y) {
                     spans.push(Span::styled(LIVE_CELL, span_style));
                 } else {
                     spans.push(Span::styled(DEAD_CELL, span_style));
                 }
             }
 
-            buf.set_spans(area.x, area.y + yi, &Spans::from(spans), area.width);
+            buf.set_spans(
+                area.x,
+                area.y + screen_y_idx,
+                &Spans::from(spans),
+                area.width,
+            );
         }
-        // let bufAreaString = format!(
-        //     "dimensions=(x={}, y={}, width={}, height={})",
-        //     area.x, area.y, area.width, area.height
-        // );
-        // let strlen = bufAreaString.len() as u16;
-        // buf.set_string(area.x, area.y, bufAreaString.clone(), Style::default());
-        // buf.set_string(
-        //     area.x + area.width - strlen,
-        //     area.y + area.height - 1,
-        //     bufAreaString,
-        //     Style::default(),
-        // );
-        // buf.set_spans(x: u16, y: u16, spans: &Spans<'a>, width: u16)
     }
 }
