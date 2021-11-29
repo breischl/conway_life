@@ -5,7 +5,7 @@ use engine::life_board::{BoardPoint, LifeBoard};
 use engine::pattern::Pattern;
 use life_widget::{LifeWidget, LifeWidgetState};
 use std::io;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Modifier, Style};
@@ -25,6 +25,7 @@ fn main() -> Result<(), io::Error> {
     let mut speed: u64 = 5; //frames per second
 
     let mut last_input_event: String = String::default();
+    let mut next_tick = Instant::now();
 
     loop {
         draw(
@@ -36,13 +37,17 @@ fn main() -> Result<(), io::Error> {
             paused,
         )?;
 
-        let poll_duration = if paused {
-            Duration::from_millis(100)
-        } else {
-            Duration::from_millis(1000 / speed as u64)
-        };
+        let tick_rate = Duration::from_millis(1000 / speed as u64);
+        if !paused && next_tick <= Instant::now() {
+            life_board.step_one();
+            next_tick = Instant::now() + tick_rate;
+        }
 
-        if poll(poll_duration)? {
+        let timeout = next_tick
+            .checked_duration_since(Instant::now())
+            .unwrap_or_else(|| Duration::from_secs(5000));
+
+        if poll(timeout)? {
             // It's guaranteed that the `read()` won't block when `poll()` returns `true`
             let event = read()?;
             last_input_event = format!("{:?}", event);
@@ -51,19 +56,26 @@ fn main() -> Result<(), io::Error> {
                 Event::Key(event) => match event.code {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('n') => {
-                        if paused {
-                            //Single-step only works if we're paused first
-                            life_board.step_one()
+                        life_board.step_one();
+                        next_tick = Instant::now() + tick_rate; //delay next update
+                    }
+                    KeyCode::Char('p') => {
+                        paused = !paused;
+                        if !paused {
+                            next_tick = Instant::now(); //force immediate screen update
                         }
                     }
-                    KeyCode::Char('p') => paused = !paused,
                     KeyCode::Char('>') | KeyCode::Char(']') => {
                         speed += 1;
+                        next_tick = Instant::now(); //force immediate screen update
                     }
-                    KeyCode::Char('<') | KeyCode::Char('[') => match speed {
-                        1 => paused = true,
-                        _ => speed -= 1,
-                    },
+                    KeyCode::Char('<') | KeyCode::Char('[') => {
+                        match speed {
+                            1 => paused = true,
+                            _ => speed -= 1,
+                        };
+                        next_tick = Instant::now(); //force immediate screen update
+                    }
                     KeyCode::Char('a') | KeyCode::Left => {
                         life_widget_state.screen_offset = life_widget_state
                             .screen_offset
@@ -116,10 +128,6 @@ fn main() -> Result<(), io::Error> {
             }
         } else {
             // Timeout expired and no `Event` is available
-        }
-
-        if !paused {
-            life_board.step_one();
         }
     }
 
