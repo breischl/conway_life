@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::cmp::min;
 use std::cmp::max;
 use super::life_board::LifeBoard;
@@ -33,10 +34,17 @@ impl Rectangle {
     }
 
     fn expand_to_include(&mut self, x:BoardIndex, y:BoardIndex) {
-        self.x_min = min(self.x_min, x);
-        self.width = max(self.width, x - self.x_min + 1);
-        self.y_min = min(self.y_min, y);
-        self.height = max(self.height, y - self.y_min + 1);
+        if self.is_empty() {
+            self.x_min = x;
+            self.y_min = y;
+            self.width = 1;
+            self.height = 1;
+        } else {
+            self.x_min = min(self.x_min, x);
+            self.width = max(self.width, x - self.x_min + 1);
+            self.y_min = min(self.y_min, y);
+            self.height = max(self.height, y - self.y_min + 1);
+        }
     }
 
     fn empty() -> Rectangle{
@@ -46,6 +54,16 @@ impl Rectangle {
             y_min: 0,
             height: 0
         }
+    }
+
+    fn is_empty(&self) -> bool{
+        self.width == 0 && self.height == 0
+    }
+}
+
+impl Display for Rectangle{
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(fmt, "(minX:{}, minY:{}, width:{}, height:{})", self.x_min, self.y_min, self.width, self.height)
     }
 }
 
@@ -197,6 +215,16 @@ impl LifeBoard for DynamicVectorLifeBoard{
         self.live_extent = new_live_extent;
         self.board_extent = new_board_extent;
     }
+
+    
+    fn get_stats(&self) -> Vec<(&str, String)>{
+        vec![
+        ("implementation", "Dynamic vector".to_owned()),    
+        ("live_cells", self.get_live_count().to_string()),
+        ("board_extent", format!("{}", &self.board_extent)),
+        ("live_extent", format!("{}", &self.live_extent)),
+        ]
+    }
 }
 
 #[cfg(test)]
@@ -267,6 +295,16 @@ mod test {
         assert_eq!(6, board.live_extent.height);
         assert_eq!(true, board.is_live(4, 5));
         assert_eq!(4, board.get_live_count());
+    }
+
+    #[test]
+    pub fn live_extent_works_off_origin() {
+        let mut board = DynamicVectorLifeBoard::empty();
+        board.set_live(90, 100);
+        assert_eq!(1, board.live_extent.width);
+        assert_eq!(1, board.live_extent.height);
+        assert_eq!(90, board.live_extent.x_min);
+        assert_eq!(100, board.live_extent.y_min);
     }
 
     #[test]

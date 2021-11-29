@@ -187,14 +187,16 @@ fn draw<'a, B: Backend>(
         };
 
         let controls_text =
-            "(p)lay/(p)ause, (n)ext step, (c)lear, (q)uit, arrows move, space toggles center square live, 1-9 to insert pattern at center, (> or ]) speed up, (< or [) slow down";
+            "(p)lay/(p)ause, (n)ext step, (c)lear, (q)uit, arrows move, space toggles center square liveness, 1-4 to insert pattern at center, (> or ]) speed up, (< or [) slow down";
 
-        let debug_text = Spans::from(vec![Span::from(last_input_event)]);
+        //let debug_text = Spans::from(vec![Span::from(last_input_event)]);
+        let stats_text = board.get_stats().iter().map(|(k, v)| format!("{}: {}", k, v)).collect::<Vec<String>>().join(", ");
 
         let controls_block = Paragraph::new(vec![
             status_spans,
             Spans::from(vec![Span::from(controls_text)]),
-            debug_text,
+            Spans::from(vec![Span::from(stats_text)]),
+            //debug_text,
         ])
         .alignment(Alignment::Center)
         .wrap(Wrap { trim: false });

@@ -7,6 +7,10 @@ pub trait LifeBoard {
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8;
     fn step_one(&mut self);
 
+    /// Get interesting statistics about the underlying board representation
+    /// This isn't really useful in an API/game sense, but can be useful for seeing that the board implementation is working as expected.
+    fn get_stats(&self) -> Vec<(&str, String)>;
+
     fn draw_pattern(&mut self, pattern: &Pattern, center: &BoardPoint) {
         for pattern_point in pattern.get_points() {
             let board_point = pattern_point.offset(center.x, center.y);

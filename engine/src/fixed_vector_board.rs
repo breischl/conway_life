@@ -98,6 +98,15 @@ impl LifeBoard for FixedVectorLifeBoard{
 
         self.grid = new_state;
     }
+
+    fn get_stats(&self) -> Vec<(&str, String)>{
+        vec![
+        ("implementation", "Fixed vector".to_owned()),    
+        ("live_cells", self.get_live_count().to_string()),
+        ("x_size", self.x_size.to_string()),
+        ("y_size", self.y_size.to_string()),
+        ]
+    }
 }
 
 /// Create a new `VectorGrid` from the given set of booleans. Each live cell should be indicated with a `true`, dead cells with a `false`.
