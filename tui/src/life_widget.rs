@@ -11,6 +11,7 @@ use tui::widgets::Widget;
 
 pub struct LifeWidgetState {
     pub screen_offset: ConsolePoint,
+    pub center_point: ConsolePoint,
     active_style: Style,
     default_style: Style,
 }
@@ -19,6 +20,7 @@ impl LifeWidgetState {
     pub fn new() -> LifeWidgetState {
         LifeWidgetState {
             screen_offset: ConsolePoint::new(0, 0),
+            center_point: ConsolePoint::new(0, 0),
             active_style: Style::default().bg(Color::LightYellow).fg(Color::Green),
             default_style: Style::default().bg(Color::Black).fg(Color::Green),
         }
@@ -27,11 +29,11 @@ impl LifeWidgetState {
 
 pub struct LifeWidget<'a> {
     board: Box<&'a dyn LifeBoard>,
-    state: &'a LifeWidgetState,
+    state: &'a mut LifeWidgetState,
 }
 
 impl<'a> LifeWidget<'a> {
-    pub fn new(board: Box<&'a dyn LifeBoard>, state: &'a LifeWidgetState) -> LifeWidget<'a> {
+    pub fn new(board: Box<&'a dyn LifeBoard>, state: &'a mut LifeWidgetState) -> LifeWidget<'a> {
         LifeWidget { board, state }
     }
 }
@@ -40,10 +42,14 @@ impl<'a> Widget for LifeWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         const LIVE_CELL: &str = "•"; //█
         const DEAD_CELL: &str = " ";
-        let state = self.state;
+        let mut state = self.state;
         let offset = &state.screen_offset;
         let center_y = area.height / 2;
         let center_x = area.width / 2;
+
+        //Update center point, need by main game loop to manually toggle active/inactive squares
+        state.center_point =
+            ConsolePoint::new(center_x as i64 + offset.x, center_y as i64 + offset.y);
 
         for screen_y_idx in 0..area.height {
             let mut spans: Vec<Span> = Vec::with_capacity(area.width as usize);

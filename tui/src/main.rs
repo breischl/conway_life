@@ -34,7 +34,7 @@ fn main() -> Result<(), io::Error> {
     loop {
         draw(
             &mut terminal,
-            &life_widget_state,
+            &mut life_widget_state,
             &life_board,
             last_input_event.clone(),
             speed,
@@ -89,6 +89,10 @@ fn main() -> Result<(), io::Error> {
                             .screen_offset
                             .move_down(calc_move_offset(event))
                     }
+                    KeyCode::Char(' ') => life_board.set_live(
+                        life_widget_state.center_point.x,
+                        life_widget_state.center_point.y,
+                    ),
                     _ => {}
                 },
                 // Event::Mouse(event) => last_input_event = format!("{:?}", event),
@@ -124,7 +128,7 @@ fn calc_move_offset(event: crossterm::event::KeyEvent) -> i64 {
 
 fn draw<'a, B: Backend>(
     terminal: &mut Terminal<B>,
-    life_widget_state: &'a LifeWidgetState,
+    life_widget_state: &'a mut LifeWidgetState,
     board: &dyn LifeBoard,
     last_input_event: String,
     speed: u64,
