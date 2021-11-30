@@ -26,7 +26,7 @@ fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let mut life_board = engine::new_dynamic_vector_board();
+    let mut life_board = engine::new_dynamic_array2d_board();
     let mut life_widget_state = LifeWidgetState::new();
     let mut app_state = AppState {
         paused: true,
@@ -105,7 +105,7 @@ fn main() -> Result<(), io::Error> {
                             .move_down(calc_move_offset(event))
                     }
                     KeyCode::Char('c') => {
-                        life_board = engine::new_dynamic_vector_board();
+                        life_board = engine::new_dynamic_array2d_board();
                         app_state.frames_completed = 0;
                     }
                     KeyCode::Char(' ') => {

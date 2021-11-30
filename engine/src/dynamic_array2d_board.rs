@@ -2,12 +2,11 @@ use std::ops::Range;
 use std::fmt::Display;
 use std::cmp::min;
 use std::cmp::max;
-use array2d::Array2D;
 use super::life_board::LifeBoard;
 
 pub struct DynamicArray2dLifeBoard {
-    grid: Array2D<u8>,
-
+    grid: ArrayGrid,
+    
     /// The set of logical board squares that are currently allocated
     /// ie, what area of the board can be used without resizing `grid`
     /// The physical `grid` will be the same size, but is 0-indexed
@@ -27,29 +26,22 @@ impl DynamicArray2dLifeBoard {
         }
     }
 
-    fn create_empty_grid(x_size: usize, y_size: usize) -> Array2D<u8>{
-        Array2D::filled_with(0u8, x_size, y_size)
-    }
-
     fn get_live_count(&self) -> u64 {
         //From inspection of Array2d source, row major order appears to be the "natural" iteration order
         //https://github.com/HarrisonMc555/array2d/blob/master/src/lib.rs#L814-L816
-        self.grid.elements_row_major_iter().map(|b| *b as u64).sum()
+        self.grid.iter().map(|b| *b as u64).sum()
     }
 
     pub fn empty() -> DynamicArray2dLifeBoard {
         DynamicArray2dLifeBoard{
-            grid : Array2D::filled_with(0, 0, 0),
+            grid : ArrayGrid::empty(),
             board_extent : Rectangle::empty(),
             live_extent: Rectangle::empty()
         }
     }
 
     fn is_live_unchecked(&self, xu: usize, yu: usize) -> u8 {
-        self.grid
-            .get(xu, yu)
-            .map(|b| if *b > 0 {1} else {0})
-            .unwrap()
+        self.grid.get(xu, yu)
     }
 }
 
@@ -88,7 +80,7 @@ impl LifeBoard for DynamicArray2dLifeBoard{
             let mut new_board_extent = self.board_extent.clone();
             new_board_extent.expand_to_include(x, y);
 
-            let mut new_grid = DynamicArray2dLifeBoard::create_empty_grid(new_board_extent.width as usize, new_board_extent.height as usize);
+            let mut new_grid = ArrayGrid::create(new_board_extent.width as usize, new_board_extent.height as usize);
             
             //Copy old grid values to new grid
             for xi in self.live_extent.x_range() {
@@ -96,7 +88,7 @@ impl LifeBoard for DynamicArray2dLifeBoard{
 
                 for yi in self.live_extent.y_range() {
                     if self.is_live(xi, yi) {
-                        new_grid.set(xu, new_board_extent.to_grid_y(yi), 1).unwrap();
+                        new_grid.set(xu, new_board_extent.to_grid_y(yi), 1);
                     }
                     
                 }
@@ -110,10 +102,10 @@ impl LifeBoard for DynamicArray2dLifeBoard{
         self.live_extent.expand_to_include(x, y);
         let (xu, yu) = self.board_extent.to_grid_point(x, y);
         let live : u8 = if is_live { 1 } else { 0 };
-        self.grid.set(xu, yu, live).unwrap();
+        self.grid.set(xu, yu, live);
     }
     
-    fn is_live(&self, x: i64, y: i64) -> bool {
+    fn is_live(&self, x: BoardIndex, y: BoardIndex) -> bool {
         self.live_extent.contains_point(x, y) && 
         self.is_live_unchecked(self.board_extent.to_grid_x(x), self.board_extent.to_grid_y(y)) > 0        
     }
@@ -132,7 +124,7 @@ impl LifeBoard for DynamicArray2dLifeBoard{
             height: self.live_extent.height + 2
         };
 
-        let mut new_grid = DynamicArray2dLifeBoard::create_empty_grid(new_board_extent.width as usize, new_board_extent.height as usize);
+        let mut new_grid = ArrayGrid::create(new_board_extent.width as usize, new_board_extent.height as usize);
 
         let mut new_live_extent = Rectangle::empty();
         
@@ -142,7 +134,7 @@ impl LifeBoard for DynamicArray2dLifeBoard{
                 let count = self.count_live_neighbors(xi, yi);
                 let live = count == 3 || (count == 2 && self.is_live(xi, yi));
                 if live {
-                    new_grid.set(xu, new_board_extent.to_grid_y(yi), 1).unwrap();
+                    new_grid.set(xu, new_board_extent.to_grid_y(yi), 1);
                     new_live_extent.expand_to_include(xi, yi);
                 }  
             }
@@ -248,6 +240,49 @@ impl Display for Rectangle{
     }
 }
 
+struct ArrayGrid{
+    col_size : usize,
+    arr : Vec<u8>,  
+}
+
+impl ArrayGrid{
+    fn set(&mut self, xu:usize, yu:usize, val:u8){
+        let idx = self.get_index(xu, yu);
+        self.arr[idx] = val;
+    }
+
+    fn get(&self, xu:usize, yu:usize) -> u8{
+        let idx = self.get_index(xu, yu);
+        self.arr[idx]
+    }
+
+    fn get_index(&self, xu:usize, yu:usize) -> usize{
+        yu + xu * self.col_size
+    }
+
+    fn iter(&self) -> std::slice::Iter<u8>{
+        self.arr.iter()
+    }
+
+    fn empty() -> ArrayGrid{
+        ArrayGrid{
+            col_size:0,
+            arr: vec![]
+        }
+    }
+
+    fn create(row_size:usize, col_size:usize) -> ArrayGrid{
+        let size = row_size * col_size;
+        let mut arr :Vec<u8> = Vec::with_capacity(size);
+        arr.resize(size, 0);
+
+        ArrayGrid{
+            col_size,
+            arr
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -286,6 +321,14 @@ mod test {
         assert_eq!(false, board.is_live(5, 5));
     }
 
+    #[test]
+    pub fn set_live_minus(){
+        let mut board = DynamicArray2dLifeBoard::empty();
+        board.set_live(5,5);
+        board.set_live(4,5);
+        assert_eq!(true, board.is_live(5, 5));
+        assert_eq!(true, board.is_live(4, 5));
+    }
 
     #[test]
     pub fn can_create_empty_board() {
