@@ -50,6 +50,11 @@ impl Pattern {
     }
 
     #[allow(non_snake_case)]
+    pub fn GLIDER_SOUTHEAST() -> Pattern {
+        Pattern::from_tuples(vec![(0, -1), (1, 0), (-1, 1), (0, 1), (1, 1)])
+    }
+
+    #[allow(non_snake_case)]
     pub fn PULSAR() -> Pattern {
         Pattern::from_tuples(vec![
             (-4, -6),

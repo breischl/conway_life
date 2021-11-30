@@ -150,7 +150,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
                 let new_grid_x = (xi - new_board_extent.x_min) as usize;
                 let column = new_grid.get_mut(new_grid_x).unwrap();
 
-                for yi in le.x_min..(le.y_min + le.height) {
+                for yi in le.y_min..(le.y_min + le.height) {
                     if self.is_live(xi, yi) {
                         let new_grid_y = (yi - new_board_extent.y_min) as usize;
                         column[new_grid_y] = true;

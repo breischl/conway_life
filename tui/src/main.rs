@@ -13,6 +13,13 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Chart, Paragraph, Widget, Wrap};
 use tui::{Frame, Terminal};
 
+struct AppState {
+    paused: bool,
+    speed: u64,
+    last_input_event: String,
+    frames_completed: u64,
+}
+
 fn main() -> Result<(), io::Error> {
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
@@ -21,25 +28,25 @@ fn main() -> Result<(), io::Error> {
 
     let mut life_board = engine::new_dynamic_vector_board();
     let mut life_widget_state = LifeWidgetState::new();
-    let mut paused = true; //start in paused state
-    let mut speed: u64 = 5; //frames per second
-
-    let mut last_input_event: String = String::default();
+    let mut app_state = AppState {
+        paused: true,
+        speed: 5,
+        last_input_event: String::default(),
+        frames_completed: 0,
+    };
     let mut next_tick = Instant::now();
-
     loop {
         draw(
             &mut terminal,
             &mut life_widget_state,
             &life_board,
-            last_input_event.clone(),
-            speed,
-            paused,
+            &app_state,
         )?;
 
-        let tick_rate = Duration::from_millis(1000 / speed as u64);
-        if !paused && next_tick <= Instant::now() {
+        let tick_rate = Duration::from_millis(1000 / app_state.speed as u64);
+        if !app_state.paused && next_tick <= Instant::now() {
             life_board.step_one();
+            app_state.frames_completed += 1;
             next_tick = Instant::now() + tick_rate;
         }
 
@@ -50,29 +57,30 @@ fn main() -> Result<(), io::Error> {
         if poll(timeout)? {
             // It's guaranteed that the `read()` won't block when `poll()` returns `true`
             let event = read()?;
-            last_input_event = format!("{:?}", event);
+            app_state.last_input_event = format!("{:?}", event);
 
             match event {
                 Event::Key(event) => match event.code {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('n') => {
                         life_board.step_one();
+                        app_state.frames_completed += 1;
                         next_tick = Instant::now() + tick_rate; //delay next update
                     }
                     KeyCode::Char('p') => {
-                        paused = !paused;
-                        if !paused {
+                        app_state.paused = !app_state.paused;
+                        if !app_state.paused {
                             next_tick = Instant::now(); //force immediate screen update
                         }
                     }
                     KeyCode::Char('>') | KeyCode::Char(']') => {
-                        speed += 1;
+                        app_state.speed += 1;
                         next_tick = Instant::now(); //force immediate screen update
                     }
                     KeyCode::Char('<') | KeyCode::Char('[') => {
-                        match speed {
-                            1 => paused = true,
-                            _ => speed -= 1,
+                        match app_state.speed {
+                            1 => app_state.paused = true,
+                            _ => app_state.speed -= 1,
                         };
                         next_tick = Instant::now(); //force immediate screen update
                     }
@@ -96,7 +104,10 @@ fn main() -> Result<(), io::Error> {
                             .screen_offset
                             .move_down(calc_move_offset(event))
                     }
-                    KeyCode::Char('c') => life_board = engine::new_dynamic_vector_board(),
+                    KeyCode::Char('c') => {
+                        life_board = engine::new_dynamic_vector_board();
+                        app_state.frames_completed = 0;
+                    }
                     KeyCode::Char(' ') => {
                         let bp = life_widget_state.center_point.to_board_point();
                         let is_live = life_board.is_live_point(&bp);
@@ -116,6 +127,10 @@ fn main() -> Result<(), io::Error> {
                     ),
                     KeyCode::Char('4') => life_board.draw_pattern(
                         &Pattern::PULSAR(),
+                        &life_widget_state.center_point.to_board_point(),
+                    ),
+                    KeyCode::Char('5') => life_board.draw_pattern(
+                        &Pattern::GLIDER_SOUTHEAST(),
                         &life_widget_state.center_point.to_board_point(),
                     ),
                     _ => {}
@@ -151,9 +166,7 @@ fn draw<'a, B: Backend>(
     terminal: &mut Terminal<B>,
     life_widget_state: &'a mut LifeWidgetState,
     board: &dyn LifeBoard,
-    last_input_event: String,
-    speed: u64,
-    paused: bool,
+    app_state: &AppState,
 ) -> Result<(), io::Error> {
     terminal.draw(|f| {
         let chunks = Layout::default()
@@ -172,17 +185,21 @@ fn draw<'a, B: Backend>(
         let life_widget = LifeWidget::new(Box::new(board), life_widget_state);
         f.render_widget(life_widget, main_block_rect);
 
-        let status_spans = if paused {
+        let status_spans = if app_state.paused {
             Spans::from(vec![
                 Span::from("paused, will run at "),
-                Span::from(speed.to_string()),
-                Span::from(" frames/sec when unpaused"),
+                Span::from(app_state.speed.to_string()),
+                Span::from(" frames/sec when unpaused, "),
+                Span::from(app_state.frames_completed.to_string()),
+                Span::from(" frames completed")
             ])
         } else {
             Spans::from(vec![
                 Span::from("running at "),
-                Span::from(speed.to_string()),
-                Span::from(" frames/sec"),
+                Span::from(app_state.speed.to_string()),
+                Span::from(" frames/sec, "),
+                Span::from(app_state.frames_completed.to_string()),
+                Span::from(" frames completed"),                
             ])
         };
 
