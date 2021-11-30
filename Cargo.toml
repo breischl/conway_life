@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "engine",
-    "tui"
+    "tui",
+    "profile"
 ]

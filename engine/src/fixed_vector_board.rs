@@ -10,12 +10,12 @@ pub struct FixedVectorLifeBoard {
 
 impl FixedVectorLifeBoard {
     pub fn empty() -> FixedVectorLifeBoard {
-        let size = 32;
+        let size = 256;
         let mut column_vec: Vec<bool> = Vec::with_capacity(size);
-        column_vec.resize(32, false);
+        column_vec.resize(size, false);
 
         let mut row_vec : Vec<Vec<bool>> = Vec::with_capacity(size);
-        row_vec.resize(32, column_vec);
+        row_vec.resize(size, column_vec);
 
         FixedVectorLifeBoard::from(row_vec)
     }
