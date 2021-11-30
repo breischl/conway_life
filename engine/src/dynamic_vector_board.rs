@@ -40,10 +40,13 @@ impl Rectangle {
             self.width = 1;
             self.height = 1;
         } else {
+            let x_max = max(self.x_min + self.width - 1, x);
+            let y_max = max(self.y_min + self.height - 1, y);
+            
             self.x_min = min(self.x_min, x);
-            self.width = max(self.width, x - self.x_min + 1);
+            self.width = x_max - self.x_min + 1;
             self.y_min = min(self.y_min, y);
-            self.height = max(self.height, y - self.y_min + 1);
+            self.height = y_max - self.y_min + 1;
         }
     }
 
@@ -295,6 +298,25 @@ mod test {
         assert_eq!(6, board.live_extent.height);
         assert_eq!(true, board.is_live(4, 5));
         assert_eq!(4, board.get_live_count());
+    }
+
+    #[test]
+    pub fn set_live_ensures_capacity_in_negative_coordinates() {
+        let mut board = DynamicVectorLifeBoard::empty();
+        assert_eq!(false, board.is_live(0, 0));
+        assert_eq!(0, board.live_extent.width);
+        assert_eq!(0, board.live_extent.height);
+        
+        board.set_live(10, 10);
+        assert_eq!(true, board.is_live(10, 10));
+        assert_eq!(1, board.live_extent.width);
+        assert_eq!(1, board.live_extent.height);
+
+        board.set_live(5, 5);
+        assert_eq!(true, board.is_live(5, 5));
+        assert_eq!(true, board.is_live(10, 10));
+        assert_eq!(6, board.live_extent.width);
+        assert_eq!(6, board.live_extent.height);
     }
 
     #[test]
