@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::fmt::Display;
 use std::cmp::min;
 use std::cmp::max;
@@ -8,66 +9,12 @@ pub struct DynamicVectorLifeBoard {
 
     /// The set of logical board squares that are currently allocated
     /// ie, what area of the board can be used without resizing `grid`
+    /// The physical `grid` will be the same size, but is 0-indexed
     board_extent: Rectangle,
 
     /// Rectangle containing all the live squares on the board
     /// In board coordinates
     live_extent: Rectangle,
-}
-
-struct Rectangle {
-    x_min: i64,
-    y_min: i64,
-    width: i64,
-    height: i64,
-}
-
-type BoardIndex = i64;
-type GridIndex = usize;
-
-impl Rectangle {
-    fn contains_point(&self, x:BoardIndex, y:BoardIndex) -> bool{
-        return x >= self.x_min 
-        && x < (self.x_min + self.width)
-         && y >= self.y_min 
-         && y < (self.y_min + self.height);
-    }
-
-    fn expand_to_include(&mut self, x:BoardIndex, y:BoardIndex) {
-        if self.is_empty() {
-            self.x_min = x;
-            self.y_min = y;
-            self.width = 1;
-            self.height = 1;
-        } else {
-            let x_max = max(self.x_min + self.width - 1, x);
-            let y_max = max(self.y_min + self.height - 1, y);
-            
-            self.x_min = min(self.x_min, x);
-            self.width = x_max - self.x_min + 1;
-            self.y_min = min(self.y_min, y);
-            self.height = y_max - self.y_min + 1;
-        }
-    }
-
-    fn empty() -> Rectangle{
-        Rectangle{
-            x_min: 0,
-            width: 0,
-            y_min: 0,
-            height: 0
-        }
-    }
-
-    fn is_empty(&self) -> bool{
-        self.width == 0 && self.height == 0
-    }
-}
-
-impl Display for Rectangle{
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        write!(fmt, "(minX:{}, minY:{}, width:{}, height:{})", self.x_min, self.y_min, self.width, self.height)
-    }
 }
 
 impl DynamicVectorLifeBoard {
@@ -79,10 +26,6 @@ impl DynamicVectorLifeBoard {
         }
     }
 
-    fn convert_coordinates(&self, x: BoardIndex, y: BoardIndex) -> (GridIndex, GridIndex) {
-        ((x - self.board_extent.x_min) as GridIndex, (y - self.board_extent.y_min) as GridIndex)
-    }
-
     fn create_empty_grid(x_size: usize, y_size: usize) -> Vec<Vec<bool>>{
         let mut new_y_vec: Vec<bool> = Vec::with_capacity(y_size);
         new_y_vec.resize(y_size, false);
@@ -92,7 +35,6 @@ impl DynamicVectorLifeBoard {
         new_x_vec
     }
 
-    #[allow(dead_code)]
     fn get_live_count(&self) -> u64 {
         let mut count: u64 = 0;
         for row in &self.grid {
@@ -124,7 +66,7 @@ impl DynamicVectorLifeBoard {
 
 impl LifeBoard for DynamicVectorLifeBoard{
     /// Count the live neighbors of this cell, not counting the cell itself
-    fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
+    fn count_live_neighbors(&self, x: BoardIndex, y: BoardIndex) -> u8 {
         // let (xu, yu) = self.convert_coordinates(x, y);
         // let is_on_edge = xu == 0 || yu == 0 || xu == (self.board_extent.width as usize - 1) || yu == (self.board_extent.height as usize - 1);
 
@@ -151,32 +93,21 @@ impl LifeBoard for DynamicVectorLifeBoard{
         // }
     }
 
-    fn set_liveness(&mut self, x: i64, y: i64, is_live:bool) {
-        self.live_extent.expand_to_include(x, y);
-        
-         if !self.board_extent.contains_point(x, y) {
-            //Note we're expanding the board extent a fair bit here, to hopefully avoid too many resizes when setting up the initial board conditions
-            const PADDING : i64 = 10;
-            let new_board_extent = Rectangle{
-                x_min: self.live_extent.x_min - PADDING,
-                width: self.live_extent.width + (2 * PADDING),
-                y_min: self.live_extent.y_min - PADDING,
-                height: self.live_extent.height + (2 * PADDING)
-            };
+    fn set_liveness(&mut self, x: BoardIndex, y: BoardIndex, is_live:bool) {
+        //Check if we have space in the current grid, and if not expand it
+        if !self.board_extent.contains_point(x, y) {
+            let mut new_board_extent = self.board_extent.clone();
+            new_board_extent.expand_to_include(x, y);
 
             let mut new_grid = DynamicVectorLifeBoard::create_empty_grid(new_board_extent.width as usize, new_board_extent.height as usize);
             
-            let le = &self.live_extent;
-
             //Copy old grid values to new grid
-            for xi in le.x_min..(le.x_min + le.width) {
-                let new_grid_x = (xi - new_board_extent.x_min) as usize;
-                let column = new_grid.get_mut(new_grid_x).unwrap();
+            for xi in self.live_extent.x_range() {
+                let column = new_grid.get_mut(new_board_extent.to_grid_x(xi)).unwrap();
 
-                for yi in le.y_min..(le.y_min + le.height) {
+                for yi in self.live_extent.y_range() {
                     if self.is_live(xi, yi) {
-                        let new_grid_y = (yi - new_board_extent.y_min) as usize;
-                        column[new_grid_y] = true;
+                        column[new_board_extent.to_grid_y(yi)] = true;
                     }
                     
                 }
@@ -184,33 +115,22 @@ impl LifeBoard for DynamicVectorLifeBoard{
 
             self.grid = new_grid;
             self.board_extent = new_board_extent;
-
-            //Not necessary - live extent didn't change because it was in board coordinates already
-            //self.live_extent = ?
+            
         }
 
-        let (xu, yu) = self.convert_coordinates(x, y);
+        self.live_extent.expand_to_include(x, y);
+        let (xu, yu) = self.board_extent.to_grid_point(x, y);
         self.grid.get_mut(xu).unwrap()[yu] = is_live;
     }
     
     fn is_live(&self, x: i64, y: i64) -> bool {
-        //We need to check that we don't index off the underlying vectors, which would really be the self.board_extent rectangle
-        //But we may as well check against self.live_extent since it's always a smaller bound, and will let us skip the actual grid lookup in some cases
-        if !self.live_extent.contains_point(x, y) {
-            false
-        } else {
-            let (xu, yu) = self.convert_coordinates(x, y);
-            self.grid
-                .get(xu)
-                .and_then(|row| row.get(yu))
-                .map(|b| *b)
-                .unwrap_or(false)
-        }
+        self.live_extent.contains_point(x, y) && 
+        self.is_live_unchecked(self.board_extent.to_grid_x(x), self.board_extent.to_grid_y(y)) > 0        
     }
 
     fn step_one(&mut self) { 
-        //We'll make the new board one larger than the existing live_extent in every direction
-        //So we can't possibly grow off the sides
+        //We'll make the new board one larger than the existing live_extent in every direction so we can't possibly grow off the sides
+        //This does not grow unbounded because we're basing off live_extent, not board_extent
         let new_board_extent = Rectangle{
             x_min: self.live_extent.x_min - 1,
             width: self.live_extent.width + 2,
@@ -222,16 +142,14 @@ impl LifeBoard for DynamicVectorLifeBoard{
 
         let mut new_live_extent = Rectangle::empty();
         
-        for xi in new_board_extent.x_min..(new_board_extent.x_min + new_board_extent.width) {
-            let new_grid_x = (xi - new_board_extent.x_min) as usize;
-            let column = new_grid.get_mut(new_grid_x).unwrap();
+        for xi in new_board_extent.x_range() {
+            let column = new_grid.get_mut(new_board_extent.to_grid_x(xi)).unwrap();
 
-            for yi in new_board_extent.y_min..(new_board_extent.y_min + new_board_extent.height) {
+            for yi in new_board_extent.y_range() {
                 let count = self.count_live_neighbors(xi, yi);
                 let live = count == 3 || (count == 2 && self.is_live(xi, yi));
                 if live {
-                    let new_grid_y = (yi - new_board_extent.y_min) as usize;
-                    column[new_grid_y] = true;
+                    column[new_board_extent.to_grid_y(yi)] = true;
                     new_live_extent.expand_to_include(xi, yi);
                 }  
             }
@@ -250,6 +168,90 @@ impl LifeBoard for DynamicVectorLifeBoard{
         ("board_extent", format!("{}", &self.board_extent)),
         ("live_extent", format!("{}", &self.live_extent)),
         ]
+    }
+}
+
+type BoardIndex = i64;
+type GridIndex = usize;
+
+#[derive(Copy, Clone, Debug)]
+struct Rectangle {
+    x_min: BoardIndex,
+    y_min: BoardIndex,
+    width: BoardIndex,
+    height: BoardIndex,
+}
+
+impl Rectangle {
+    fn contains_point(&self, x:BoardIndex, y:BoardIndex) -> bool{
+        return x >= self.x_min 
+        && x <= self.x_max()
+         && y >= self.y_min 
+         && y <= self.y_max()
+    }
+
+    fn expand_to_include(&mut self, x:BoardIndex, y:BoardIndex) {
+        if self.is_empty() {
+            self.x_min = x;
+            self.y_min = y;
+            self.width = 1;
+            self.height = 1;
+        } else {
+            let x_max = max(self.x_min + self.width - 1, x);
+            let y_max = max(self.y_min + self.height - 1, y);
+            
+            self.x_min = min(self.x_min, x);
+            self.width = x_max - self.x_min + 1;
+            self.y_min = min(self.y_min, y);
+            self.height = y_max - self.y_min + 1;
+        }
+    }
+
+    fn empty() -> Rectangle{
+        Rectangle{
+            x_min: 0,
+            width: 0,
+            y_min: 0,
+            height: 0
+        }
+    }
+
+    fn x_max(&self) -> BoardIndex{
+        self.x_min + self.width - 1
+    }
+
+    fn y_max(&self) -> BoardIndex{
+        self.y_min + self.height - 1
+    }
+
+    fn is_empty(&self) -> bool{
+        self.width == 0 && self.height == 0
+    }
+
+    fn to_grid_x(&self, x:BoardIndex) -> GridIndex{
+        (x - self.x_min) as GridIndex
+    }
+
+    fn to_grid_y(&self, y:BoardIndex) -> GridIndex{
+        (y - self.y_min) as GridIndex
+    }
+
+    fn to_grid_point(&self, x:BoardIndex, y:BoardIndex) -> (GridIndex, GridIndex){
+        (self.to_grid_x(x), self.to_grid_y(y))
+    }
+
+    fn x_range(&self) -> Range<BoardIndex> {
+        self.x_min..(self.x_min + self.width)
+    }
+
+    fn y_range(&self) -> Range<BoardIndex> {
+        self.y_min..(self.y_min + self.height)
+    }
+}
+
+impl Display for Rectangle{
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        write!(fmt, "(minX:{}, minY:{}, width:{}, height:{})", self.x_min, self.y_min, self.width, self.height)
     }
 }
 
