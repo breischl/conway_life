@@ -44,20 +44,43 @@ impl FixedVectorLifeBoard {
         }
         count
     }
+
+    fn is_live_unchecked(&self, x:usize, y:usize) -> u8{
+        self.grid
+            .get(x)
+            .and_then(|row| row.get(y))
+            .map(|b| if *b {1} else {0})
+            .unwrap()
+    }
 }
 
 impl LifeBoard for FixedVectorLifeBoard{
     /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
-        self.is_live_num(x - 1, y - 1) 
-        + self.is_live_num(x - 1, y)
-        + self.is_live_num(x - 1, y + 1)
-        + self.is_live_num(x, y - 1)
-        //Note we skipped counting at (x, y) here, because that's the cell itself
-        + self.is_live_num(x, y + 1)
-        + self.is_live_num(x + 1, y - 1)
-        + self.is_live_num(x + 1, y)
-        + self.is_live_num(x + 1, y + 1)
+        let is_on_edge = x == 0 || y == 0 || x == (self.x_size as i64 - 1) || y == (self.y_size as i64 - 1);
+        
+        if is_on_edge {
+           self.is_live_num(x - 1, y - 1) 
+            + self.is_live_num(x - 1, y)
+            + self.is_live_num(x - 1, y + 1)
+            + self.is_live_num(x, y - 1)
+            //Note we skipped counting at (x, y) here, because that's the cell itself
+            + self.is_live_num(x, y + 1)
+            + self.is_live_num(x + 1, y - 1)
+            + self.is_live_num(x + 1, y)
+            + self.is_live_num(x + 1, y + 1)         
+        } else {
+            let (x, y) = self.convert_coordinates(x, y);
+            self.is_live_unchecked(x - 1, y - 1) 
+            + self.is_live_unchecked(x - 1, y)
+            + self.is_live_unchecked(x - 1, y + 1)
+            + self.is_live_unchecked(x, y - 1)
+            //Note we skipped counting at (x, y) here, because that's the cell itself
+            + self.is_live_unchecked(x, y + 1)
+            + self.is_live_unchecked(x + 1, y - 1)
+            + self.is_live_unchecked(x + 1, y)
+            + self.is_live_unchecked(x + 1, y + 1)    
+        }
     }
     
     fn set_liveness(&mut self, x: i64, y: i64, is_live: bool){
@@ -77,7 +100,7 @@ impl LifeBoard for FixedVectorLifeBoard{
             self.grid
                 .get(xu)
                 .and_then(|row| row.get(yu))
-                .map(|b| b.clone())
+                .map(|b| *b)
                 .unwrap_or(false)
         }
     }

@@ -16,8 +16,8 @@ pub struct DynamicVectorLifeBoard {
 }
 
 struct Rectangle {
-    x_min: BoardIndex,
-    y_min: BoardIndex,
+    x_min: i64,
+    y_min: i64,
     width: i64,
     height: i64,
 }
@@ -112,20 +112,43 @@ impl DynamicVectorLifeBoard {
             live_extent: Rectangle::empty()
         }
     }
+
+    fn is_live_unchecked(&self, xu: usize, yu: usize) -> u8 {
+        self.grid
+            .get(xu)
+            .and_then(|row| row.get(yu))
+            .map(|b| if *b { 1} else {0})
+            .unwrap()
+    }
 }
 
 impl LifeBoard for DynamicVectorLifeBoard{
     /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
-        self.is_live_num(x - 1, y - 1) 
-        + self.is_live_num(x - 1, y)
-        + self.is_live_num(x - 1, y + 1)
-        + self.is_live_num(x, y - 1)
-        //Note we skipped counting at (x, y) here, because that's the cell itself
-        + self.is_live_num(x, y + 1)
-        + self.is_live_num(x + 1, y - 1)
-        + self.is_live_num(x + 1, y)
-        + self.is_live_num(x + 1, y + 1)
+        // let (xu, yu) = self.convert_coordinates(x, y);
+        // let is_on_edge = xu == 0 || yu == 0 || xu == (self.board_extent.width as usize - 1) || yu == (self.board_extent.height as usize - 1);
+
+        // if is_on_edge {
+            self.is_live_num(x - 1, y - 1) 
+            + self.is_live_num(x - 1, y)
+            + self.is_live_num(x - 1, y + 1)
+            + self.is_live_num(x, y - 1)
+            //Note we skipped counting at (x, y) here, because that's the cell itself
+            + self.is_live_num(x, y + 1)
+            + self.is_live_num(x + 1, y - 1)
+            + self.is_live_num(x + 1, y)
+            + self.is_live_num(x + 1, y + 1)
+        // } else {
+        //     self.is_live_unchecked(xu - 1, yu - 1) 
+        //     + self.is_live_unchecked(xu - 1, yu)
+        //     + self.is_live_unchecked(xu - 1, yu + 1)
+        //     + self.is_live_unchecked(xu, yu - 1)
+        //     //Note we skipped counting at (x, y) here, because that's the cell itself
+        //     + self.is_live_unchecked(xu, yu + 1)
+        //     + self.is_live_unchecked(xu + 1, yu - 1)
+        //     + self.is_live_unchecked(xu + 1, yu)
+        //     + self.is_live_unchecked(xu + 1, yu + 1)
+        // }
     }
 
     fn set_liveness(&mut self, x: i64, y: i64, is_live:bool) {
@@ -180,7 +203,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
             self.grid
                 .get(xu)
                 .and_then(|row| row.get(yu))
-                .map(|b| b.clone())
+                .map(|b| *b)
                 .unwrap_or(false)
         }
     }
