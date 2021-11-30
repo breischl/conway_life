@@ -67,10 +67,10 @@ impl DynamicVectorLifeBoard {
 impl LifeBoard for DynamicVectorLifeBoard{
     /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: BoardIndex, y: BoardIndex) -> u8 {
-        // let (xu, yu) = self.convert_coordinates(x, y);
-        // let is_on_edge = xu == 0 || yu == 0 || xu == (self.board_extent.width as usize - 1) || yu == (self.board_extent.height as usize - 1);
+        let (xu, yu) = self.board_extent.to_grid_point(x, y);
+        let is_on_edge = xu <= 0 || yu <= 0 || xu >= (self.board_extent.width as usize - 1) || yu >= (self.board_extent.height as usize - 1);
 
-        // if is_on_edge {
+         if is_on_edge {
             self.is_live_num(x - 1, y - 1) 
             + self.is_live_num(x - 1, y)
             + self.is_live_num(x - 1, y + 1)
@@ -80,17 +80,17 @@ impl LifeBoard for DynamicVectorLifeBoard{
             + self.is_live_num(x + 1, y - 1)
             + self.is_live_num(x + 1, y)
             + self.is_live_num(x + 1, y + 1)
-        // } else {
-        //     self.is_live_unchecked(xu - 1, yu - 1) 
-        //     + self.is_live_unchecked(xu - 1, yu)
-        //     + self.is_live_unchecked(xu - 1, yu + 1)
-        //     + self.is_live_unchecked(xu, yu - 1)
-        //     //Note we skipped counting at (x, y) here, because that's the cell itself
-        //     + self.is_live_unchecked(xu, yu + 1)
-        //     + self.is_live_unchecked(xu + 1, yu - 1)
-        //     + self.is_live_unchecked(xu + 1, yu)
-        //     + self.is_live_unchecked(xu + 1, yu + 1)
-        // }
+        } else {
+            self.is_live_unchecked(xu - 1, yu - 1) 
+            + self.is_live_unchecked(xu - 1, yu)
+            + self.is_live_unchecked(xu - 1, yu + 1)
+            + self.is_live_unchecked(xu, yu - 1)
+            //Note we skipped counting at (x, y) here, because that's the cell itself
+            + self.is_live_unchecked(xu, yu + 1)
+            + self.is_live_unchecked(xu + 1, yu - 1)
+            + self.is_live_unchecked(xu + 1, yu)
+            + self.is_live_unchecked(xu + 1, yu + 1)
+        }
     }
 
     fn set_liveness(&mut self, x: BoardIndex, y: BoardIndex, is_live:bool) {
@@ -129,6 +129,10 @@ impl LifeBoard for DynamicVectorLifeBoard{
     }
 
     fn step_one(&mut self) { 
+        if self.board_extent.is_empty() {
+            return;
+        }
+        
         //We'll make the new board one larger than the existing live_extent in every direction so we can't possibly grow off the sides
         //This does not grow unbounded because we're basing off live_extent, not board_extent
         let new_board_extent = Rectangle{

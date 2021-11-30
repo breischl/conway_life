@@ -12,7 +12,7 @@ fn main() {
     println!("Beginning test...");
     let start = Instant::now();
 
-    for _i in 0..1000 {
+    for _i in 0..2000 {
         life_board.step_one();
     }
 
