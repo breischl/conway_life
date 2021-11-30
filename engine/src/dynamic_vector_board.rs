@@ -5,7 +5,7 @@ use std::cmp::max;
 use super::life_board::LifeBoard;
 
 pub struct DynamicVectorLifeBoard {
-    grid: Vec<Vec<bool>>,
+    grid: Vec<Vec<u8>>,
 
     /// The set of logical board squares that are currently allocated
     /// ie, what area of the board can be used without resizing `grid`
@@ -26,11 +26,11 @@ impl DynamicVectorLifeBoard {
         }
     }
 
-    fn create_empty_grid(x_size: usize, y_size: usize) -> Vec<Vec<bool>>{
-        let mut new_y_vec: Vec<bool> = Vec::with_capacity(y_size);
-        new_y_vec.resize(y_size, false);
+    fn create_empty_grid(x_size: usize, y_size: usize) -> Vec<Vec<u8>>{
+        let mut new_y_vec: Vec<u8> = Vec::with_capacity(y_size);
+        new_y_vec.resize(y_size, 0);
 
-        let mut new_x_vec: Vec<Vec<bool>> = Vec::with_capacity(x_size);
+        let mut new_x_vec: Vec<Vec<u8>> = Vec::with_capacity(x_size);
         new_x_vec.resize(x_size, new_y_vec);
         new_x_vec
     }
@@ -39,7 +39,7 @@ impl DynamicVectorLifeBoard {
         let mut count: u64 = 0;
         for row in &self.grid {
             for cell in row {
-                if *cell {
+                if *cell > 0 {
                     count = count + 1;
                 }
             }
@@ -59,7 +59,7 @@ impl DynamicVectorLifeBoard {
         self.grid
             .get(xu)
             .and_then(|row| row.get(yu))
-            .map(|b| if *b { 1} else {0})
+            .map(|b| if *b > 0 {1} else {0})
             .unwrap()
     }
 }
@@ -107,7 +107,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
 
                 for yi in self.live_extent.y_range() {
                     if self.is_live(xi, yi) {
-                        column[new_board_extent.to_grid_y(yi)] = true;
+                        column[new_board_extent.to_grid_y(yi)] = 1;
                     }
                     
                 }
@@ -120,7 +120,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
 
         self.live_extent.expand_to_include(x, y);
         let (xu, yu) = self.board_extent.to_grid_point(x, y);
-        self.grid.get_mut(xu).unwrap()[yu] = is_live;
+        self.grid.get_mut(xu).unwrap()[yu] = if is_live { 1 } else { 0 };
     }
     
     fn is_live(&self, x: i64, y: i64) -> bool {
@@ -153,7 +153,7 @@ impl LifeBoard for DynamicVectorLifeBoard{
                 let count = self.count_live_neighbors(xi, yi);
                 let live = count == 3 || (count == 2 && self.is_live(xi, yi));
                 if live {
-                    column[new_board_extent.to_grid_y(yi)] = true;
+                    column[new_board_extent.to_grid_y(yi)] = 1;
                     new_live_extent.expand_to_include(xi, yi);
                 }  
             }
