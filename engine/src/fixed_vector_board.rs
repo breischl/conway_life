@@ -1,7 +1,7 @@
-use std::convert::From;
 use crate::life_board::LifeBoard;
+use std::convert::From;
 
-/// A `LifeBoard` backed by a fixed-size `Vector`. Any coordinates that fall off the initial board are forced to dead. 
+/// A `LifeBoard` backed by a fixed-size `Vector`. Any coordinates that fall off the initial board are forced to dead.
 pub struct FixedVectorLifeBoard {
     grid: Vec<Vec<bool>>,
     x_size: usize,
@@ -14,7 +14,7 @@ impl FixedVectorLifeBoard {
         let mut column_vec: Vec<bool> = Vec::with_capacity(size);
         column_vec.resize(size, false);
 
-        let mut row_vec : Vec<Vec<bool>> = Vec::with_capacity(size);
+        let mut row_vec: Vec<Vec<bool>> = Vec::with_capacity(size);
         row_vec.resize(size, column_vec);
 
         FixedVectorLifeBoard::from(row_vec)
@@ -45,46 +45,44 @@ impl FixedVectorLifeBoard {
         count
     }
 
-    fn is_live_unchecked(&self, x:usize, y:usize) -> u8{
+    fn is_live_unchecked(&self, x: usize, y: usize) -> u8 {
         self.grid
             .get(x)
             .and_then(|row| row.get(y))
-            .map(|b| if *b {1} else {0})
+            .map(|b| if *b { 1 } else { 0 })
             .unwrap()
     }
 }
 
-impl LifeBoard for FixedVectorLifeBoard{
+impl LifeBoard for FixedVectorLifeBoard {
     /// Count the live neighbors of this cell, not counting the cell itself
     fn count_live_neighbors(&self, x: i64, y: i64) -> u8 {
-        let is_on_edge = x == 0 || y == 0 || x == (self.x_size as i64 - 1) || y == (self.y_size as i64 - 1);
-        
+        let is_on_edge =
+            x == 0 || y == 0 || x == (self.x_size as i64 - 1) || y == (self.y_size as i64 - 1);
         if is_on_edge {
-           self.is_live_num(x - 1, y - 1) 
-            + self.is_live_num(x - 1, y)
-            + self.is_live_num(x - 1, y + 1)
-            + self.is_live_num(x, y - 1)
-            //Note we skipped counting at (x, y) here, because that's the cell itself
-            + self.is_live_num(x, y + 1)
-            + self.is_live_num(x + 1, y - 1)
-            + self.is_live_num(x + 1, y)
-            + self.is_live_num(x + 1, y + 1)         
+            self.is_live_num(x - 1, y - 1)
+                + self.is_live_num(x - 1, y)
+                + self.is_live_num(x - 1, y + 1)
+                + self.is_live_num(x, y - 1)
+                + self.is_live_num(x, y + 1)
+                + self.is_live_num(x + 1, y - 1)
+                + self.is_live_num(x + 1, y)
+                + self.is_live_num(x + 1, y + 1)
         } else {
             let (x, y) = self.convert_coordinates(x, y);
-            self.is_live_unchecked(x - 1, y - 1) 
-            + self.is_live_unchecked(x - 1, y)
-            + self.is_live_unchecked(x - 1, y + 1)
-            + self.is_live_unchecked(x, y - 1)
-            //Note we skipped counting at (x, y) here, because that's the cell itself
-            + self.is_live_unchecked(x, y + 1)
-            + self.is_live_unchecked(x + 1, y - 1)
-            + self.is_live_unchecked(x + 1, y)
-            + self.is_live_unchecked(x + 1, y + 1)    
+            self.is_live_unchecked(x - 1, y - 1)
+                + self.is_live_unchecked(x - 1, y)
+                + self.is_live_unchecked(x - 1, y + 1)
+                + self.is_live_unchecked(x, y - 1)
+                + self.is_live_unchecked(x, y + 1)
+                + self.is_live_unchecked(x + 1, y - 1)
+                + self.is_live_unchecked(x + 1, y)
+                + self.is_live_unchecked(x + 1, y + 1)
         }
     }
-    
-    fn set_liveness(&mut self, x: i64, y: i64, is_live: bool){
-        if x < 0 || y < 0 || x >= self.x_size as i64 || y>= self.y_size as i64 {
+
+    fn set_liveness(&mut self, x: i64, y: i64, is_live: bool) {
+        if x < 0 || y < 0 || x >= self.x_size as i64 || y >= self.y_size as i64 {
             panic!("Coordinate is outside of FixedVectorLifeBoard bounds");
         }
 
@@ -93,7 +91,7 @@ impl LifeBoard for FixedVectorLifeBoard{
     }
 
     fn is_live(&self, x: i64, y: i64) -> bool {
-        if x < 0 || y < 0 || x >= self.x_size as i64 || y>= self.y_size as i64 {
+        if x < 0 || y < 0 || x >= self.x_size as i64 || y >= self.y_size as i64 {
             false
         } else {
             let (xu, yu) = self.convert_coordinates(x, y);
@@ -105,7 +103,7 @@ impl LifeBoard for FixedVectorLifeBoard{
         }
     }
 
-    fn step_one(&mut self) { 
+    fn step_one(&mut self) {
         //Duplicate the internal vectors so that we don't lose the prior state halfway through
         let mut new_state = self.grid.clone();
 
@@ -113,7 +111,6 @@ impl LifeBoard for FixedVectorLifeBoard{
             for yi in 0..(self.y_size as i64) {
                 let count = self.count_live_neighbors(xi, yi);
                 let live = count == 3 || (count == 2 && self.is_live(xi, yi));
-                
                 let (xu, yu) = self.convert_coordinates(xi, yi);
                 new_state.get_mut(xu).unwrap()[yu] = live;
             }
@@ -122,12 +119,12 @@ impl LifeBoard for FixedVectorLifeBoard{
         self.grid = new_state;
     }
 
-    fn get_stats(&self) -> Vec<(&str, String)>{
+    fn get_stats(&self) -> Vec<(&str, String)> {
         vec![
-        ("implementation", "Fixed vector".to_owned()),    
-        ("live_cells", self.get_live_count().to_string()),
-        ("x_size", self.x_size.to_string()),
-        ("y_size", self.y_size.to_string()),
+            ("implementation", "Fixed vector".to_owned()),
+            ("live_cells", self.get_live_count().to_string()),
+            ("x_size", self.x_size.to_string()),
+            ("y_size", self.y_size.to_string()),
         ]
     }
 }
@@ -165,20 +162,19 @@ mod test {
     use super::*;
 
     #[test]
-    pub fn step_one_works_empty(){
+    pub fn step_one_works_empty() {
         let mut board = FixedVectorLifeBoard::empty();
         board.step_one();
         assert_eq!(0, board.get_live_count());
     }
 
     #[test]
-    pub fn step_one_works_blinker(){
+    pub fn step_one_works_blinker() {
         let mut board = FixedVectorLifeBoard::empty();
         board.set_live(2, 2);
         board.set_live(2, 3);
         board.set_live(2, 4);
         board.set_live(5, 5);
-        
         board.step_one();
         assert_eq!(3, board.get_live_count());
         assert_eq!(true, board.is_live(1, 3));
@@ -197,7 +193,6 @@ mod test {
         assert_eq!(false, board.is_live(3, 3));
         assert_eq!(false, board.is_live(5, 5));
     }
-
 
     #[test]
     pub fn can_create_empty_board() {
@@ -260,8 +255,8 @@ mod test {
     #[test]
     pub fn count_live_neighbors_doesnt_count_self() {
         let mut board = FixedVectorLifeBoard::empty();
-        for xi in 0..3{
-            for yi in 0..3{
+        for xi in 0..3 {
+            for yi in 0..3 {
                 board.set_live(xi, yi);
             }
         }
